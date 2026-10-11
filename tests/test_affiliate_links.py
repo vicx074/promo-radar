@@ -104,6 +104,20 @@ def test_registration_then_explicit_approval_and_publication(tmp_path):
         assert len(fake.calls) == 1
 
 
+def test_ml_creation_requires_real_product_url_and_explicit_link_step(tmp_path):
+    with TestClient(create_app(settings(tmp_path), FakePublisher())) as client:
+        assert make_offer(
+            client, product_url="https://evil.example/p/MLB4567890"
+        ).status_code == 422
+        assert make_offer(
+            client, affiliate_url=AFFILIATE
+        ).status_code == 422
+        assert make_offer(
+            client, product_url=None
+        ).status_code == 422
+        assert client.get("/api/v1/offers", headers=ADMIN).json() == []
+
+
 def test_registration_is_admin_only_and_requires_explicit_confirmation(tmp_path):
     with TestClient(create_app(settings(tmp_path), FakePublisher())) as client:
         offer = make_offer(client).json()
