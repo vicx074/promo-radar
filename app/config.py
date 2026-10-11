@@ -12,6 +12,7 @@ class Settings:
     evolution_instance: str
     whatsapp_group_id: str
     send_enabled: bool = False
+    media_allowed_hosts: tuple[str, ...] = ("http2.mlstatic.com",)
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -23,4 +24,9 @@ class Settings:
             evolution_instance=os.getenv("EVOLUTION_INSTANCE", "promocoes"),
             whatsapp_group_id=os.getenv("WHATSAPP_GROUP_ID", ""),
             send_enabled=os.getenv("SEND_ENABLED", "false").strip().lower() == "true",
+            media_allowed_hosts=tuple(
+                item.strip().lower()
+                for item in os.getenv("MEDIA_ALLOWED_HOSTS", "http2.mlstatic.com").split(",")
+                if item.strip()
+            ),
         )
