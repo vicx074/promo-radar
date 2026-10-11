@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, HttpUrl, field_validator
 from app.config import Settings
 from app.domain import PublicationStatus, format_offer
 from app.evolution import EvolutionPublisher
+from app.media import MediaError, cache_image, download_image, load_image
 from app.storage import AlreadyPublishedOrInProgress, DuplicateOffer, SQLiteStore
 
 
@@ -17,20 +18,24 @@ class OfferCreate(BaseModel):
     price_cents: int = Field(gt=0)
     reference_price_cents: int | None = Field(default=None, gt=0)
     affiliate_url: HttpUrl
+    image_url: HttpUrl | None = None
 
-    @field_validator("affiliate_url")
+    @field_validator("affiliate_url", "image_url")
     @classmethod
-    def require_https(cls, value: HttpUrl) -> HttpUrl:
-        if value.scheme != "https":
+    def require_https(cls, value: HttpUrl | None) -> HttpUrl | None:
+        if value is not None and value.scheme != "https":
             raise ValueError("Link de afiliado deve usar HTTPS")
         return value
 
 
-def create_app(settings: Settings, publisher=None) -> FastAPI:
+def create_app(settings: Settings, publisher=None, image_loader=None) -> FastAPI:
     store = SQLiteStore(settings.sqlite_path)
     publisher = publisher or EvolutionPublisher(
         settings.evolution_base_url, settings.evolution_api_key, settings.evolution_instance
     )
+    media_dir = settings.sqlite_path.parent / "media"
+    if image_loader is None:
+        image_loader = lambda url: download_image(url, settings.media_allowed_hosts)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -49,14 +54,15 @@ def create_app(settings: Settings, publisher=None) -> FastAPI:
     def health():
         if not store.health():
             raise HTTPException(status_code=503, detail="SQLite indisponível")
-        return {"status": "ok", "schema_version": 2}
+        return {"status": "ok", "schema_version": 3}
 
     @app.post("/api/v1/offers", status_code=201, dependencies=[Depends(admin)])
     def create_offer(payload: OfferCreate):
         try:
             return store.create_offer(
-                {**payload.model_dump(exclude={"affiliate_url"}),
-                 "affiliate_url": str(payload.affiliate_url)}
+                {**payload.model_dump(exclude={"affiliate_url", "image_url"}),
+                 "affiliate_url": str(payload.affiliate_url),
+                 "image_url": str(payload.image_url) if payload.image_url else None}
             )
         except DuplicateOffer:
             raise HTTPException(status_code=409, detail="Oferta já cadastrada") from None
@@ -86,7 +92,44 @@ def create_app(settings: Settings, publisher=None) -> FastAPI:
         offer = store.get_offer(offer_id)
         if not offer:
             raise HTTPException(status_code=404, detail="Oferta não encontrada")
-        return {"message": format_offer(offer)}
+        media = store.media_for_offer(offer_id)
+        return {
+            "message": format_offer(offer),
+            "image_url": offer["image_url"],
+            "image_ready": media is not None,
+            "image": (
+                {"mime_type": media["mime_type"], "size_bytes": media["size_bytes"],
+                 "width": media["width"], "height": media["height"]}
+                if media else None
+            ),
+        }
+
+    @app.post("/api/v1/offers/{offer_id}/prepare-media", dependencies=[Depends(admin)])
+    def prepare_media(offer_id: str):
+        offer = store.get_offer(offer_id)
+        if not offer:
+            raise HTTPException(status_code=404, detail="Oferta não encontrada")
+        if offer["status"] != "DRAFT":
+            raise HTTPException(status_code=409, detail="Preparar imagem antes da aprovação")
+        if not offer["image_url"]:
+            raise HTTPException(status_code=409, detail="Oferta não possui image_url")
+        try:
+            image = image_loader(offer["image_url"])
+            name = cache_image(image, media_dir)
+        except (MediaError, OSError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+        result = store.attach_media(
+            offer_id,
+            {"sha256": image.sha256, "relative_path": name,
+             "size_bytes": image.size_bytes, "width": image.width,
+             "height": image.height},
+        )
+        if not result:
+            raise HTTPException(status_code=409, detail="Oferta não está em DRAFT")
+        return {
+            "offer_id": offer_id, "image_ready": True, "size_bytes": image.size_bytes,
+            "width": image.width, "height": image.height, "mime_type": "image/jpeg",
+        }
 
     @app.post("/api/v1/offers/{offer_id}/publish", dependencies=[Depends(admin)])
     def publish(offer_id: str):
@@ -99,6 +142,16 @@ def create_app(settings: Settings, publisher=None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Oferta não encontrada")
         if offer["status"] != "APPROVED":
             raise HTTPException(status_code=409, detail="Oferta deve ser aprovada")
+        media = store.media_for_offer(offer_id)
+        if offer["image_url"] and not media:
+            raise HTTPException(status_code=409, detail="Imagem precisa ser preparada antes de publicar")
+        if media:
+            try:
+                image_bytes = load_image(media_dir, media["sha256"])
+            except (OSError, MediaError):
+                raise HTTPException(
+                    status_code=409, detail="Imagem armazenada indisponível ou inválida"
+                ) from None
         try:
             record = store.claim_publication(offer_id, settings.whatsapp_group_id)
         except AlreadyPublishedOrInProgress:
@@ -106,7 +159,14 @@ def create_app(settings: Settings, publisher=None) -> FastAPI:
                 status_code=409, detail="Envio já existe; verifique a publicação antes de repetir"
             ) from None
         try:
-            provider_id = publisher.send_text(settings.whatsapp_group_id, format_offer(offer))
+            if media:
+                provider_id = publisher.send_image(
+                    settings.whatsapp_group_id, image_bytes, format_offer(offer)
+                )
+            else:
+                provider_id = publisher.send_text(
+                    settings.whatsapp_group_id, format_offer(offer)
+                )
         except Exception as exc:
             record = store.finish_publication(
                 record["id"], PublicationStatus.UNKNOWN,
