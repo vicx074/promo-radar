@@ -4,9 +4,7 @@ Nunca registrar senha, cookie nem CSRF. Somente hash SHA-256 do token no banco.
 """
 import getpass
 import hashlib
-import hmac
 import secrets
-import sqlite3
 import sys
 import time
 from dataclasses import dataclass
