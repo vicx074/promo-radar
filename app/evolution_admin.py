@@ -28,9 +28,10 @@ class EvolutionAdmin:
         self.instance = instance
         self.transport = transport
 
-    def _request(self, method: str, path: str, **kwargs) -> object:
+    def _request(self, method: str, path: str, *, read_timeout: float = 15.0, **kwargs) -> object:
         try:
-            with httpx.Client(timeout=15.0, transport=self.transport) as client:
+            timeout = httpx.Timeout(15.0, connect=5.0, read=read_timeout)
+            with httpx.Client(timeout=timeout, transport=self.transport) as client:
                 response = client.request(
                     method,
                     self.base_url + path,
@@ -42,8 +43,11 @@ class EvolutionAdmin:
         except httpx.HTTPStatusError as exc:
             # Não incluir o corpo: pode conter QR ou credenciais.
             raise RuntimeError(f"Evolution respondeu HTTP {exc.response.status_code}") from None
-        except httpx.RequestError:
-            raise RuntimeError("Não foi possível conectar à Evolution API") from None
+        except httpx.TimeoutException as exc:
+            # Informar apenas a classe da falha: não expor URL, tokens nem QR.
+            raise RuntimeError(f"Evolution excedeu o tempo limite ({type(exc).__name__})") from None
+        except httpx.RequestError as exc:
+            raise RuntimeError(f"Falha de conexão com Evolution ({type(exc).__name__})") from None
         except ValueError:
             raise RuntimeError("Evolution retornou JSON inválido") from None
 
@@ -73,6 +77,7 @@ class EvolutionAdmin:
         payload = self._request(
             "GET", f"/group/fetchAllGroups/{self.instance}",
             params={"getParticipants": "false"},
+            read_timeout=90.0,
         )
         if not isinstance(payload, list):
             raise RuntimeError("Resposta inesperada ao listar grupos")
