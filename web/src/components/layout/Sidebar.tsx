@@ -25,7 +25,7 @@ export function Sidebar({section, onNavigate, onLogout}: {
       <span><strong><LetterSwap text="promo radar" /></strong><small>central de ofertas</small></span>
     </div>
     <div className="sidebar-scroll">
-      <div className="nav-heading">WORKSPACE</div>
+      <div className="nav-heading">PAINEL</div>
       <nav aria-label="Navegação principal" className="nav-list">
         {pages.map(page => <button
           key={page.id} type="button"
@@ -44,8 +44,8 @@ export function Sidebar({section, onNavigate, onLogout}: {
       </div>
     </div>
     <footer className="sidebar-footer">
-      <a href="https://github.com/vicx074/promo-radar" rel="noreferrer" target="_blank"><LifeBuoy size={16} /> Código e documentação</a>
-      <button type="button" onClick={onLogout}><ChevronLeft size={16} /> Sair do painel</button>
+      <a href="https://github.com/vicx074/promo-radar" rel="noreferrer" target="_blank"><LifeBuoy size={16} /> Documentação</a>
+      <button type="button" onClick={onLogout}><ChevronLeft size={16} /> Sair</button>
       <span className="side-version"><CircleHelp size={13} /> Painel MVP · v0.1</span>
     </footer>
   </aside>;
