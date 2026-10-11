@@ -1,6 +1,8 @@
 services:
   bot:
-    build: .
+    build:
+      context: .
+      target: runtime
     restart: unless-stopped
     environment:
       ADMIN_API_KEY: ${ADMIN_API_KEY:?defina em .env}
@@ -11,6 +13,7 @@ services:
       WHATSAPP_GROUP_ID: ${WHATSAPP_GROUP_ID:-}
       SEND_ENABLED: ${SEND_ENABLED:-false}
       SQLITE_PATH: /app/data/offers.db
+      MEDIA_ALLOWED_HOSTS: ${MEDIA_ALLOWED_HOSTS:-http2.mlstatic.com}
     ports:
       - "127.0.0.1:8000:8000"
     volumes:

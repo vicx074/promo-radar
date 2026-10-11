@@ -136,5 +136,5 @@ def test_upgrades_existing_v1_database_without_deleting_offers(tmp_path):
     store.initialize()
     assert store.get_offer("old-offer")["status"] == "APPROVED"
     with store.connect() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
         assert conn.execute("SELECT COUNT(*) FROM price_observations").fetchone()[0] == 0
