@@ -182,7 +182,9 @@ class ApifyCatalogProvider:
                 raise InvalidCatalog("Provedor não retornou JSON válido") from exc
             return parse_apify_items(data, limit=limit)
         except (httpx.TimeoutException, httpx.TransportError) as exc:
-            raise CatalogUnavailable("Timeout ou conexão indisponível no provedor de busca") from exc
+            raise CatalogUnavailable(
+                "Timeout ou conexão indisponível no provedor de busca"
+            ) from exc
         finally:
             if own_client:
                 client.close()
