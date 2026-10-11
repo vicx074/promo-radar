@@ -20,18 +20,18 @@ export function HistoryPage() {
     } catch(err) {setError(errorMessage(err));}
     finally {setBusy(false);}
   }
-  return <div className="history-layout">
-    <div className="card history-lookup">
+  return <div className="history-layout w-full min-w-0 max-w-[820px]">
+    <div className="card history-lookup min-w-0 p-4 sm:p-7">
       <span className="section-icon"><FileClock size={21}/></span>
       <h2>Consultar publicação</h2>
       <p>Informe o ID recebido após uma publicação para consultar seu estado. A listagem completa ainda não está disponível na API.</p>
-      <form onSubmit={lookup} className="search-field history-search">
-        <Search size={18} /><input aria-label="ID da publicação" value={id} onChange={e=>setId(e.target.value)}
+      <form onSubmit={lookup} className="search-field history-search flex min-w-0 flex-wrap items-center gap-3 sm:flex-nowrap">
+        <Search size={18} /><input className="min-w-0 flex-[1_1_calc(100%-40px)] text-base sm:flex-1 sm:text-sm" aria-label="ID da publicação" value={id} onChange={e=>setId(e.target.value)}
           placeholder="Cole aqui o ID da publicação" spellCheck={false} />
-        <button className="button primary" type="submit" disabled={busy || !id.trim()}>{busy?"Consultando":"Consultar"}<ArrowRight size={16}/></button>
+        <button className="button primary min-h-11 w-full sm:w-auto" type="submit" disabled={busy || !id.trim()}>{busy?"Consultando":"Consultar"}<ArrowRight size={16}/></button>
       </form>
       {error && <Feedback tone="error">{error}</Feedback>}
-      {record && <div className="history-result">
+      {record && <div className="history-result min-w-0 break-words">
         <div className="result-title"><strong>Status</strong><span className={"pill "+(record.status==="SENT"?"pill-good":"pill-warn")}>{record.status}</span></div>
         <dl><div><dt>Publicação</dt><dd>{record.id}</dd></div>
           <div><dt>Oferta</dt><dd>{record.offer_id}</dd></div>
