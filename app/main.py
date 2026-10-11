@@ -261,6 +261,17 @@ def create_app(
             raise HTTPException(status_code=503, detail="SQLite indisponível")
         return {"status": "ok", "schema_version": 7}
 
+    @app.get("/api/v1/discovery/provider-status", dependencies=[Depends(admin)])
+    def discovery_provider_status():
+        return {
+            "provider": settings.discovery_provider,
+            "configured": (
+                bool(settings.apify_token)
+                if settings.discovery_provider == "apify" else True
+            ),
+            "requires_token": settings.discovery_provider == "apify",
+        }
+
     @app.post("/api/v1/discovery/search", dependencies=[Depends(admin)])
     def search_catalog(payload: CatalogSearch):
         try:
