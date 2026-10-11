@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:responsive": "vitest run src/lib/responsive.test.ts"
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
@@ -25,6 +25,7 @@
     "vite": "^6.3.5",
     "vitest": "^3.2.4",
     "tailwindcss": "^4.1.12",
-    "@tailwindcss/vite": "^4.1.12"
+    "@tailwindcss/vite": "^4.1.12",
+    "@playwright/test": "^1.56.1"
   }
 }
