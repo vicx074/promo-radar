@@ -14,3 +14,7 @@ Estado: oferta DRAFT -> APPROVED; publicação ausente -> SENDING -> SENT | UNKN
 ## Descoberta Mercado Livre (fase inicial)
 
 `app/discovery.py` valida feed CSV de origem autorizada, guarda preços por hora em `price_observations` (schema SQLite v2), e cria somente DRAFT se houver duas observações anteriores e queda mínima frente ao menor preço histórico. `app/discovery_cli.py` executa a importação manual. Nunca publica, aprova ou chama o Mercado Livre. Veja [ADR 0005](docs/decisions/0005-mercado-livre-feed.md) e [guia](docs/mercado-livre-discovery.md).
+
+## Mídia (PR #3)
+
+`app/media.py` prepara JPEG antes da aprovação em `POST /offers/{id}/prepare-media`, armazenando bytes no volume e metadados em SQLite schema v3. `app/evolution.py` envia uma imagem mais caption usando `sendMedia` quando preparada; texto legado usa `sendText`. O preview lê apenas o banco. Vide [ADR 0006](docs/decisions/0006-media-offers.md).
