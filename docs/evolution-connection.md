@@ -4,17 +4,20 @@ Este runbook cobre somente grupo próprio autorizado e número de testes. Bailey
 
 ## 1. Preparar e subir
 
+O Compose utiliza `evoapicloud/evolution-api:v2.3.7` (tag publicada, ADR 0004). A tag antiga do namespace `atendai` pode falhar com `pull access denied`. No Windows, rode o Compose a partir de `C:\Projestos pessoais\promo-radar`, não da cópia aninhada em `evolution-api`. Verifique o `.env` desse diretório sem expor credenciais; não o sobrescreva por `.env.example`.
+
 ```bash
 cp .env.example .env
 # Configure ADMIN_API_KEY, EVOLUTION_API_KEY e POSTGRES_PASSWORD fortes e distintos.
 # Deixe SEND_ENABLED=false e WHATSAPP_GROUP_ID vazio.
+docker compose pull evolution
 docker compose up -d --build
 docker compose ps
 docker compose logs --tail=50 evolution
 curl --fail http://127.0.0.1:8000/health
 ```
 
-Se estiver numa VPS, use túnel SSH em vez de abrir a portas 8000/8085: `ssh -L 8000:127.0.0.1:8000 -L 8085:127.0.0.1:8085 usuario@ip-da-vps`.
+Se estiver numa VPS, use túnel SSH em vez de abrir as portas 8000/8085: `ssh -L 8000:127.0.0.1:8000 -L 8085:127.0.0.1:8085 usuario@ip-da-vps`.
 
 A Evolution é acessada na porta **8085 do host**, mas escuta em **8080 dentro do Docker**. O bot usa `http://evolution:8080`, independentemente de `EVOLUTION_BASE_URL` no `.env`.
 
