@@ -14,3 +14,28 @@ jobs:
       - run: ruff check app tests
       - run: pytest -q
       - run: docker compose --env-file .env.example config -q
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validar Compose
+        run: docker compose --env-file .env.example config -q
+      - name: Construir imagem do backend
+        run: docker compose --env-file .env.example build bot
+      - name: Iniciar somente o backend (Evolution não pareada)
+        run: docker compose --env-file .env.example up -d --no-deps bot
+      - name: Verificar inicialização, SQLite e CLI
+        run: |
+          for i in $(seq 1 25); do
+            if curl -fsS http://127.0.0.1:8000/health > /tmp/promo-radar-health.json; then break; fi
+            sleep 2
+          done
+          grep -q '"status":"ok"' /tmp/promo-radar-health.json
+          docker compose --env-file .env.example exec -T bot python -m app.evolution_admin --help
+      - name: Logs em caso de falha
+        if: failure()
+        run: docker compose --env-file .env.example logs bot || true
+      - name: Encerrar serviços
+        if: always()
+        run: docker compose --env-file .env.example down

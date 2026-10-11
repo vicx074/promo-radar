@@ -11,6 +11,7 @@ Backend para curadoria de promoções de tecnologia e publicação manualmente a
 - [Contrato de ofertas](docs/contracts/offers.md)
 - [Contrato de publicação](docs/contracts/publications.md)
 - [Operação/backup](docs/operations.md)
+- [Conexão Evolution API: QR, grupos e primeiro envio](docs/evolution-connection.md)
 - [Instruções de IA](AGENTS.md)
 
 Nenhum agente deve modificar invariantes sem revisar contratos, testes e ADRs. SEND_ENABLED é **false** por padrão. Baileys é integração não oficial, sujeita a desconexões e políticas do WhatsApp.
@@ -68,3 +69,17 @@ Armazene cópia segura fora da VPS e teste restauração. Não copie somente o a
 ## Testes
 
 `python -m pytest -q` exercita estado de ofertas, idempotência, aceite e falha incerta usando publisher fake; não equivale a teste real de envio via WhatsApp.
+
+## Diagnóstico da Evolution API (sem enviar)
+
+Com Compose executando e `SEND_ENABLED=false`:
+
+```bash
+docker compose exec -T bot python -m app.evolution_admin create
+docker compose exec -T bot python -m app.evolution_admin status
+docker compose exec -T bot python -m app.evolution_admin groups
+```
+
+Esses comandos criam/consultam a instância e listam os JIDs dos grupos; não enviam mensagens. Conexão QR no Evolution Manager e primeiro envio deliberado estão em [docs/evolution-connection.md](docs/evolution-connection.md). Não compartilhe JIDs, QR ou API keys em issues.
+
+O CI agora também compila a imagem do bot e inicia somente o FastAPI para testar `/health`, sem autenticar WhatsApp. Isso não valida o container da Evolution nem o QR.
