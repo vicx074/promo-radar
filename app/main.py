@@ -6,7 +6,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
 
 from app.affiliate import AffiliateLinkError, validate_official_link
-from app.auth import (OwnerAuth, cookie_name, verify_origin, verify_password)
+from app.auth import OwnerAuth, cookie_name, verify_origin, verify_password
 from app.catalog import CatalogUnavailable, CsvCatalogProvider, InvalidCatalog
 from app.config import Settings
 from app.discovery import _valid_product_url
