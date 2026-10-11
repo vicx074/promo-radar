@@ -18,3 +18,7 @@ Estado: oferta DRAFT -> APPROVED; publicação ausente -> SENDING -> SENT | UNKN
 ## Mídia (PR #3)
 
 `app/media.py` prepara JPEG antes da aprovação em `POST /offers/{id}/prepare-media`, armazenando bytes no volume e metadados em SQLite schema v3. `app/evolution.py` envia uma imagem mais caption usando `sendMedia` quando preparada; texto legado usa `sendText`. O preview lê apenas o banco. Vide [ADR 0006](docs/decisions/0006-media-offers.md).
+
+## Busca pontual e revisão antes de qualquer campanha
+
+`app/catalog.py` define provider substituível `CatalogProvider` com implementação inicial `CsvCatalogProvider`. `POST /api/v1/discovery/search` só consulta quando solicitado, salva resultados completos no SQLite schema v4 e expira em 45 minutos. `POST /api/v1/discovery/select` aceita apenas IDs presentes nesse snapshot e cria ofertas DRAFT idempotentes, preservando preço/link/imagem do momento da busca. Não há coleta periódica, scheduler nem disparos nesta fase. Veja [ADR 0007](docs/decisions/0007-on-demand-search.md).

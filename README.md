@@ -123,3 +123,9 @@ O CI agora também compila a imagem do bot e inicia somente o FastAPI para testa
 A oferta agora pode receber `image_url` HTTPS. Após criar o DRAFT, execute `POST /api/v1/offers/{id}/prepare-media` **antes de aprovar**, para baixar imagem de host autorizado, otimizar JPEG com Pillow e salvar em `./data/media`. O preview mostra metadados e `image_ready`; a publicação usa uma mensagem única de imagem e legenda via `sendMedia`. Ofertas antigas sem imagem continuam enviando texto. Migração automática do schema 2 para 3. Leia [docs/media-offers.md](docs/media-offers.md) e [ADR 0006](docs/decisions/0006-media-offers.md).
 
 A CI executa a suíte Python dentro e fora do container Docker e simula a requisição HTTP da Evolution. Isso **não** equivale à entrega real de imagem a um grupo: o teste end-to-end WhatsApp deve ser manual e autorizado.
+
+## Busca por nicho sob demanda (PR #4)
+
+O painel poderá buscar **quando o operador solicitar**, sem coleta periódica. Nesta versão o catálogo de entrada é o arquivo `./data/import/catalogo.csv`, fornecido de fonte autorizada ou preenchido manualmente — **a aplicação não pesquisa anúncios ao vivo no Mercado Livre**. `POST /api/v1/discovery/search` procura termos no título e devolve `search_id` + cards de produtos (preço em centavos, link e `image_url`, quando disponível). `POST /api/v1/discovery/select` seleciona IDs desse snapshot e cria apenas DRAFT, sem aprovação, otimização de imagem ou envio. A busca expira em 45 minutos, IDs repetidos são rejeitados e a seleção não altera ofertas existentes. A partir do DRAFT, o fluxo de imagem da PR #3 continua inalterado.
+
+Consulte [guia de busca sob demanda](docs/on-demand-discovery.md) e [ADR 0007](docs/decisions/0007-on-demand-search.md). A CI testa busca e seleção em Python e Docker, com catálogo sintético e sem WhatsApp real.
