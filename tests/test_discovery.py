@@ -55,7 +55,7 @@ def test_same_hour_and_same_price_deduplicated(tmp_path):
 
 def test_previous_minimum_not_advertised_reference_and_same_drop_no_repeat(tmp_path):
     store = SQLiteStore(tmp_path / "offers.db")
-    for i, price in enumerate((20000, 19500, 16500, 16500, 14500)):
+    for i, price in enumerate((20000, 19500, 16500, 16500, 13500)):
         result = ingest_catalog(
             write_catalog(tmp_path, price),
             store,
@@ -65,7 +65,7 @@ def test_previous_minimum_not_advertised_reference_and_same_drop_no_repeat(tmp_p
     offers = store.list_offers()
     assert len(offers) == 2
     assert offers[0]["reference_price_cents"] == 16500
-    assert offers[0]["price_cents"] == 14500
+    assert offers[0]["price_cents"] == 13500
     assert offers[1]["reference_price_cents"] == 19500
     assert offers[1]["price_cents"] == 16500
 
