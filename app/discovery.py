@@ -22,6 +22,7 @@ class CatalogItem:
     title: str
     price_cents: int
     product_url: str
+    image_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -80,8 +81,15 @@ def read_catalog(path: Path) -> list[CatalogItem]:
                 raise ValueError(f"Linha {line}: preço fora do intervalo")
             if not _valid_product_url(url):
                 raise ValueError(f"Linha {line}: URL HTTPS de produto inválida")
+            image_url = record.get("image_url")
+            image_url = image_url.strip() if image_url else None
+            if image_url:
+                # Validação também acontece na preparação de mídia.
+                from app.media import validated_image_host
+
+                validated_image_host(image_url, ("http2.mlstatic.com",))
             seen.add(item_id)
-            records.append(CatalogItem(item_id, title, cents, url))
+            records.append(CatalogItem(item_id, title, cents, url, image_url))
     return records
 
 
@@ -144,11 +152,12 @@ def ingest_catalog(
             result = conn.execute(
                 """INSERT OR IGNORE INTO offers
                    (id, source, source_item_id, title, price_cents,
-                    reference_price_cents, affiliate_url, status, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?)""",
+                    reference_price_cents, affiliate_url, image_url, status, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?)""",
                 (
                     str(uuid4()), _SOURCE, offer_item_id, item.title,
-                    item.price_cents, previous_low, item.product_url, utc_now(),
+                    item.price_cents, previous_low, item.product_url,
+                    item.image_url, utc_now(),
                 ),
             )
             drafts += result.rowcount
