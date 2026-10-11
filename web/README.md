@@ -17,7 +17,7 @@ docker compose up -d --build
 Acesse http://127.0.0.1:5173. O Nginx serve a interface compilada e envia `/api` para o container FastAPI.
 
 ## Uso
-1. Informe a chave `ADMIN_API_KEY` definida no backend: é a **chave administrativa do Promo Radar**, não a senha do Mercado Livre. Fica só na memória do componente React.
+1. Informe a **senha privada do Promo Radar**, configurada como hash Argon2id no backend. O navegador mantém apenas a sessão HttpOnly e o token CSRF em memória. Não use a chave ADMIN_API_KEY no browser.
 2. Em **Descobrir ofertas**, pesquise título/nicho no CSV autorizado `./data/import/catalogo.csv`. Se o arquivo estiver ausente, a API retorna erro 503; não há busca ao vivo do Mercado Livre.
 3. Selecione produtos e vá a **Minhas ofertas**. O backend cria DRAFT sem envio.
 4. Abra a oferta; adicione link oficial do afiliado gerado na Central do Mercado Livre, confirmando que ele corresponde ao produto. Validação de formato não comprova comissão.
@@ -44,3 +44,7 @@ GitHub Actions: `.github/workflows/web.yml` também constrói imagem Nginx e tes
 
 ### Segurança
 Não insira cookies do Mercado Livre, token de sessão, JID de grupo ou chave administrativa em issues, logs ou commits. O painel é para acesso local de administrador; não exponha diretamente a porta 5173 à Internet. As rotas protegidas continuam exigindo `x-admin-key` mesmo com frontend.
+
+## Operação remota para uma pessoa
+
+O painel é uma ferramenta privada, não um SaaS. Não oferece cadastro de usuários, equipes ou planos. O acesso de VPS requer `SINGLE_OWNER_MODE=true` com senha Argon2id, cookie HTTPS e `ALLOW_ADMIN_API_KEY=false`, via Tailscale Serve. Veja [docs/private-vps.md](../docs/private-vps.md). É possível atualizar a página sem digitar novamente a senha até a sessão expirar; clicar em Sair revoga a sessão no SQLite. A interface não armazena credenciais em localStorage, sessionStorage ou cookies acessíveis por JavaScript.
