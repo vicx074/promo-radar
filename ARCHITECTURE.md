@@ -30,3 +30,7 @@ O schema v5 preserva o `affiliate_url` físico legado para compatibilidade SQLit
 ## Frontend React + Vite
 
 SPA React 19/TypeScript em `web/`, com componentes reutilizáveis, microinteração Fancy Components (MIT), renderização de imagens limitada ao CDN conhecido. Em desenvolvimento, Vite faz proxy de `/api` ao FastAPI; em produção local, Nginx no Compose em 127.0.0.1:5173 reencaminha `/api` para `bot:8000`. O backend continua único dono das regras de negócio, autenticação administrativa, SQLite e chamadas Evolution. `x-admin-key` só fica no estado React, sem cookies nem armazenamento permanente; uso local de administrador, não segurança multiusuário. O estado de geração automática e o agendador permanecem ausentes. Veja [ADR 0010](docs/decisions/0010-vite-dashboard.md).
+
+## Autenticação de operador único na VPS (schema SQLite v6)
+
+Não é SaaS. `app/auth.py` mantém uma única sessão ativa, revogável no SQLite (hash SHA-256 do token; cookie opaco `__Host-promo_session`; CSRF em header; Argon2id para senha). `POST /api/v1/auth/login`, `GET /api/v1/auth/session` e `POST /api/v1/auth/logout` controlam a sessão. Todas as rotas `/api/v1/*` operacionais exigem cookie de sessão com Origin/CSRF em escrita; a chave legada só continua como opção de CLI/CI local, e **não pode ser ativada** em modo VPS `SINGLE_OWNER_MODE=true`. Limite de tentativas e revogação são persistentes. Acesso remoto exclusivamente pela tailnet via TLS do Tailscale Serve, com Nginx e bot presos a localhost. [ADR 0011](docs/decisions/0011-private-single-owner-auth.md).
