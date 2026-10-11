@@ -14,7 +14,9 @@ docker compose logs --tail=50 evolution
 curl --fail http://127.0.0.1:8000/health
 ```
 
-Se estiver numa VPS, use túnel SSH em vez de abrir a porta 8000/8080: `ssh -L 8000:127.0.0.1:8000 -L 8080:127.0.0.1:8080 usuario@ip-da-vps`.
+Se estiver numa VPS, use túnel SSH em vez de abrir a portas 8000/8085: `ssh -L 8000:127.0.0.1:8000 -L 8085:127.0.0.1:8085 usuario@ip-da-vps`.
+
+A Evolution é acessada na porta **8085 do host**, mas escuta em **8080 dentro do Docker**. O bot usa `http://evolution:8080`, independentemente de `EVOLUTION_BASE_URL` no `.env`.
 
 ## 2. Criar e conectar a instância
 
@@ -22,7 +24,7 @@ Se estiver numa VPS, use túnel SSH em vez de abrir a porta 8000/8080: `ssh -L 8
 docker compose exec -T bot python -m app.evolution_admin create
 ```
 
-Se já existir, a Evolution pode retornar erro. Não apague sessões sem verificar estado. Abra [Evolution Manager](http://127.0.0.1:8080/manager), indique URL `http://127.0.0.1:8080` e a chave `EVOLUTION_API_KEY`, selecione a instância `promocoes`, conecte e escaneie o QR em WhatsApp > Dispositivos conectados > Conectar dispositivo. A rota da interface varia por release; se necessário consulte a documentação da imagem fixada. Não salve QR em logs.
+Se já existir, a Evolution pode retornar erro. Não apague sessões sem verificar estado. Abra [Evolution Manager](http://127.0.0.1:8085/manager), indique URL `http://127.0.0.1:8085` e a chave `EVOLUTION_API_KEY`, selecione a instância `promocoes`, conecte e escaneie o QR em WhatsApp > Dispositivos conectados > Conectar dispositivo. A rota da interface varia por release; se necessário consulte a documentação da imagem fixada. Não salve QR em logs.
 
 ```bash
 docker compose exec -T bot python -m app.evolution_admin status

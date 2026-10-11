@@ -5,6 +5,7 @@ services:
     environment:
       ADMIN_API_KEY: ${ADMIN_API_KEY:?defina em .env}
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:?defina em .env}
+      # Rede Docker: comunicação entre containers sempre usa a porta 8080.
       EVOLUTION_BASE_URL: http://evolution:8080
       EVOLUTION_INSTANCE: ${EVOLUTION_INSTANCE:-promocoes}
       WHATSAPP_GROUP_ID: ${WHATSAPP_GROUP_ID:-}
@@ -23,9 +24,9 @@ services:
     image: atendai/evolution-api:v2.1.1
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8085:8080"
     environment:
-      SERVER_URL: http://localhost:8080
+      SERVER_URL: http://localhost:8085
       AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:?defina em .env}
       DATABASE_ENABLED: "true"
       DATABASE_PROVIDER: postgresql

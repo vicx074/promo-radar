@@ -18,7 +18,7 @@ Nenhum agente deve modificar invariantes sem revisar contratos, testes e ADRs. S
 
 ## Executar localmente
 
-Pré-requisito: Docker e Docker Compose. A implantação padrão expõe somente 127.0.0.1:8000 (FastAPI) e 127.0.0.1:8080 (Evolution) no host; PostgreSQL e Redis não têm portas públicas.
+Pré-requisito: Docker e Docker Compose. A implantação padrão expõe somente 127.0.0.1:8000 (FastAPI) e 127.0.0.1:8085 (Evolution) no host; PostgreSQL e Redis não têm portas públicas.
 
 ```bash
 cp .env.example .env
@@ -27,6 +27,8 @@ docker compose up -d --build
 docker compose ps
 curl http://127.0.0.1:8000/health
 ```
+
+Evolution Manager local: http://127.0.0.1:8085/manager. O mapeamento e o acesso são distintos: **host 8085 → container Evolution 8080**; o bot usa **http://evolution:8080** pela rede interna. Alterar `EVOLUTION_BASE_URL` no `.env` não altera o mapeamento de portas do Compose.
 
 Swagger local: http://127.0.0.1:8000/docs — endpoints administrativos exigem `x-admin-key`.
 
