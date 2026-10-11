@@ -99,7 +99,8 @@ def test_one_active_session_and_restart_recovery(tmp_path):
                           ).status_code == 401
     with sqlite3.connect(cfg.sqlite_path) as conn:
         assert conn.execute("SELECT COUNT(*) FROM owner_sessions").fetchone()[0] == 1
-        assert conn.execute("SELECT token_hash FROM owner_sessions").fetchone()[0][0] != first_cookie
+        hashed_token = conn.execute("SELECT token_hash FROM owner_sessions").fetchone()[0]
+        assert hashed_token != first_cookie
 
 
 def test_expired_or_idle_session_is_rejected(tmp_path):
