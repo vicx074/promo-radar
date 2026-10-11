@@ -1,0 +1,62 @@
+name: Web CI
+
+on:
+  push:
+    paths:
+      - "web/**"
+      - "compose.yaml"
+      - ".github/workflows/web.yml"
+  pull_request:
+    paths:
+      - "web/**"
+      - "compose.yaml"
+      - ".github/workflows/web.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Utility tests
+        run: npm test
+      - name: TypeScript + production bundle
+        run: npm run build
+
+  docker-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate full Compose
+        run: docker compose --env-file .env.example config -q
+      - name: Build the web image
+        run: docker build -t promo-radar-web:ci ./web
+      - name: Smoke test Nginx static assets
+        run: |
+          docker run --detach --name promo-radar-web-ci -p 127.0.0.1:5173:80 promo-radar-web:ci
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:5173/ -o /tmp/index.html; then break; fi
+            sleep 1
+          done
+          grep -q 'Promo Radar' /tmp/index.html
+          curl -fsSI http://127.0.0.1:5173/ | grep -i 'x-content-type-options: nosniff'
+          curl -fsS http://127.0.0.1:5173/ | grep -q '/assets/'
+      - name: Nginx logs on failure
+        if: failure()
+        run: docker logs promo-radar-web-ci || true
+      - name: Stop container
+        if: always()
+        run: docker rm -f promo-radar-web-ci || true
