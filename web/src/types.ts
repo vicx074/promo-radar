@@ -12,6 +12,7 @@ export interface Offer {
   product_url: string | null;
   affiliate_url: string | null;
   affiliate_status: string;
+  affiliate_job_status?: "PENDING" | "PROCESSING" | "LINKED" | "FAILED" | "CANCELLED" | null;
   image_url: string | null;
   created_at: string;
 }
