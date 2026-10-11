@@ -1,0 +1,52 @@
+name: Affiliate Provider Research (offline)
+
+on:
+  push:
+    branches: [research/mercado-livre-affiliate]
+    paths:
+      - ".github/workflows/affiliate-provider-research.yml"
+      - "experiments/affiliate-provider/**"
+  pull_request:
+    paths:
+      - ".github/workflows/affiliate-provider-research.yml"
+      - "experiments/affiliate-provider/**"
+  workflow_dispatch:
+
+# Código de terceiro isolado sem segredos de produção ou acesso de escrita.
+permissions:
+  contents: read
+
+jobs:
+  upstream-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Promo Radar (sem credenciais persistidas)
+        uses: actions/checkout@v4
+        with:
+          path: promo-radar
+          persist-credentials: false
+      - name: Checkout Afilimax provider em commit fixo
+        uses: actions/checkout@v4
+        with:
+          repository: Afilimax/mercado-livre-provider
+          ref: f2594f9c1c52344d97679a10a096d90d31ad4a4a
+          path: upstream-provider
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Instalar sem scripts de instalação
+        working-directory: upstream-provider
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Rodar testes unitários mockados do upstream
+        working-directory: upstream-provider
+        run: npx vitest run __tests__/index.spec.ts
+      - name: Compilar biblioteca upstream
+        working-directory: upstream-provider
+        run: npm run build
+      - name: Contrato HTTP simulado e auditoria da exposição de cookies
+        run: node promo-radar/experiments/affiliate-provider/contract.cjs
+
+# Proibido: usar secrets, exportar cookies, gerar links de verdade ou
+# executar os testes práticos de sessão do repositório terceiro.
