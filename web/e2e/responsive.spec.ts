@@ -109,7 +109,7 @@ test("login privado continua utilizável em celular estreito", async ({page}) =>
   await page.goto("/");
   await expect(page.getByRole("heading", {name: "Acesse seu painel"})).toBeVisible();
   await expectNoHorizontalOverflow(page);
-  const input = page.getByRole("textbox", {name: "Senha do painel"});
+  const input = page.getByLabel("Senha do painel");
   await expect(input).toBeVisible();
   expect(await input.evaluate(element => getComputedStyle(element).fontSize)).toBe("16px");
 });
