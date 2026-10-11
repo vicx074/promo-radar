@@ -152,12 +152,13 @@ def ingest_catalog(
             result = conn.execute(
                 """INSERT OR IGNORE INTO offers
                    (id, source, source_item_id, title, price_cents,
-                    reference_price_cents, affiliate_url, image_url, status, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?)""",
+                    reference_price_cents, affiliate_url, product_url,
+                    image_url, status, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?)""",
                 (
                     str(uuid4()), _SOURCE, offer_item_id, item.title,
                     item.price_cents, previous_low, item.product_url,
-                    item.image_url, utc_now(),
+                    item.product_url, item.image_url, utc_now(),
                 ),
             )
             drafts += result.rowcount

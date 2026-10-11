@@ -3,14 +3,18 @@ from contextlib import asynccontextmanager
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from pydantic import BaseModel, Field, HttpUrl, field_validator
+from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
 
+from app.affiliate import AffiliateLinkError, validate_official_link
 from app.catalog import CatalogUnavailable, CsvCatalogProvider, InvalidCatalog
 from app.config import Settings
+from app.discovery import _valid_product_url
 from app.domain import PublicationStatus, format_offer
 from app.evolution import EvolutionPublisher
 from app.media import MediaError, cache_image, download_image, load_image
 from app.storage import (
+    AffiliateLinkRequired,
+    AffiliateOfferNotEditable,
     AlreadyPublishedOrInProgress,
     DuplicateOffer,
     SearchSelectionInvalid,
@@ -26,15 +30,49 @@ class OfferCreate(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     price_cents: int = Field(gt=0)
     reference_price_cents: int | None = Field(default=None, gt=0)
-    affiliate_url: HttpUrl
+    affiliate_url: HttpUrl | None = None
+    product_url: HttpUrl | None = None
     image_url: HttpUrl | None = None
 
-    @field_validator("affiliate_url", "image_url")
+    @field_validator("affiliate_url", "product_url", "image_url")
     @classmethod
     def require_https(cls, value: HttpUrl | None) -> HttpUrl | None:
         if value is not None and value.scheme != "https":
             raise ValueError("Link de afiliado deve usar HTTPS")
         return value
+
+    @model_validator(mode="after")
+    def require_product_or_link(self):
+        if self.source == "mercado_livre":
+            if not self.product_url:
+                raise ValueError("Ofertas Mercado Livre exigem product_url")
+            if not _valid_product_url(str(self.product_url)):
+                raise ValueError("product_url deve ser uma URL de produto Mercado Livre")
+            if self.affiliate_url is not None:
+                raise ValueError("Cadastre link de afiliado no endpoint /affiliate-link")
+        if self.source != "mercado_livre" and not self.affiliate_url:
+            raise ValueError("Informe affiliate_url para esta fonte")
+        return self
+
+
+class AffiliateLinkRegister(BaseModel):
+    affiliate_url: HttpUrl
+    product_match_confirmed: bool
+
+    @field_validator("affiliate_url")
+    @classmethod
+    def check_link_format(cls, value: HttpUrl) -> HttpUrl:
+        try:
+            validate_official_link(str(value))
+        except AffiliateLinkError as exc:
+            raise ValueError(str(exc)) from exc
+        return value
+
+    @model_validator(mode="after")
+    def confirm_matching_product(self):
+        if self.product_match_confirmed is not True:
+            raise ValueError("Confirme que o link foi gerado para este produto")
+        return self
 
 
 class CatalogSearch(BaseModel):
@@ -97,7 +135,7 @@ def create_app(
     def health():
         if not store.health():
             raise HTTPException(status_code=503, detail="SQLite indisponível")
-        return {"status": "ok", "schema_version": 4}
+        return {"status": "ok", "schema_version": 5}
 
     @app.post("/api/v1/discovery/search", dependencies=[Depends(admin)])
     def search_catalog(payload: CatalogSearch):
@@ -127,12 +165,23 @@ def create_app(
             ) from None
         return {"selected": offers}
 
+    @app.get("/api/v1/affiliates/mercado-livre/status", dependencies=[Depends(admin)])
+    def affiliate_status():
+        return store.affiliate_connection_status()
+
     @app.post("/api/v1/offers", status_code=201, dependencies=[Depends(admin)])
     def create_offer(payload: OfferCreate):
         try:
             return store.create_offer(
-                {**payload.model_dump(exclude={"affiliate_url", "image_url"}),
-                 "affiliate_url": str(payload.affiliate_url),
+                {**payload.model_dump(
+                    exclude={"affiliate_url", "product_url", "image_url"}
+                 ),
+                 "product_url": str(payload.product_url) if payload.product_url else None,
+                 "affiliate_url": (
+                     str(payload.product_url)
+                     if payload.source == "mercado_livre"
+                     else str(payload.affiliate_url)
+                 ),
                  "image_url": str(payload.image_url) if payload.image_url else None}
             )
         except DuplicateOffer:
@@ -151,9 +200,29 @@ def create_app(
             raise HTTPException(status_code=404, detail="Oferta não encontrada")
         return offer
 
+    @app.post(
+        "/api/v1/offers/{offer_id}/affiliate-link", dependencies=[Depends(admin)]
+    )
+    def register_affiliate_link(offer_id: str, payload: AffiliateLinkRegister):
+        try:
+            result = store.register_affiliate_link(offer_id, str(payload.affiliate_url))
+        except AffiliateOfferNotEditable:
+            raise HTTPException(
+                status_code=409,
+                detail="Vínculo permitido somente em oferta Mercado Livre DRAFT",
+            ) from None
+        if not result:
+            raise HTTPException(status_code=404, detail="Oferta não encontrada")
+        return result
+
     @app.post("/api/v1/offers/{offer_id}/approve", dependencies=[Depends(admin)])
     def approve(offer_id: str):
-        offer = store.approve(offer_id)
+        try:
+            offer = store.approve(offer_id)
+        except AffiliateLinkRequired:
+            raise HTTPException(
+                status_code=409, detail="Cadastre link de afiliado antes de aprovar"
+            ) from None
         if not offer:
             raise HTTPException(status_code=404, detail="Oferta não encontrada")
         return offer
@@ -213,6 +282,10 @@ def create_app(
             raise HTTPException(status_code=404, detail="Oferta não encontrada")
         if offer["status"] != "APPROVED":
             raise HTTPException(status_code=409, detail="Oferta deve ser aprovada")
+        if offer["source"] == "mercado_livre" and not offer["affiliate_url"]:
+            raise HTTPException(
+                status_code=409, detail="Link oficial de afiliado não cadastrado"
+            )
         media = store.media_for_offer(offer_id)
         if offer["image_url"] and not media:
             raise HTTPException(

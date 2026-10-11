@@ -50,6 +50,21 @@ jobs:
           search_id=$(printf '%s' "$response" | python -c             'import json,sys; x=json.load(sys.stdin); assert len(x["items"])==1; assert x["items"][0]["promotion_verified"] is False; print(x["search_id"])')
           selection=$(curl -fsS -X POST 'http://127.0.0.1:8000/api/v1/discovery/select'             -H "x-admin-key: $admin_key"             -H 'content-type: application/json'             --data "{\"search_id\":\"$search_id\",\"source_item_ids\":[\"MLB_TEST\"]}")
           printf '%s' "$selection" | python -c             'import json,sys; x=json.load(sys.stdin); assert x["selected"][0]["status"]=="DRAFT"; assert x["selected"][0]["created"] is True'
+      - name: Validar bloqueios e cadastro de afiliado no Docker (HTTP)
+        run: |
+          admin_key=$(sed -n 's/^ADMIN_API_KEY=//p' .env.example | head -n 1)
+          offers=$(curl -fsS 'http://127.0.0.1:8000/api/v1/offers'             -H "x-admin-key: $admin_key")
+          offer_id=$(printf '%s' "$offers" | python -c             'import json,sys; xs=json.load(sys.stdin); print(next(x["id"] for x in xs if x["source"]=="mercado_livre"))')
+          preview=$(curl -fsS "http://127.0.0.1:8000/api/v1/offers/$offer_id"             -H "x-admin-key: $admin_key")
+          printf '%s' "$preview" | python -c             'import json,sys; x=json.load(sys.stdin); assert x["affiliate_url"] is None; assert x["product_url"].startswith("https://www.mercadolivre.com.br/")'
+          blocked=$(curl -s -o /dev/null -w '%{http_code}' -X POST             "http://127.0.0.1:8000/api/v1/offers/$offer_id/approve"             -H "x-admin-key: $admin_key")
+          test "$blocked" = 409
+          curl -fsS -X POST             "http://127.0.0.1:8000/api/v1/offers/$offer_id/affiliate-link"             -H "x-admin-key: $admin_key"             -H 'content-type: application/json'             --data '{"affiliate_url":"https://meli.la/LINK-FICTICIO","product_match_confirmed":true}'             | python -c 'import json,sys; x=json.load(sys.stdin); assert x["affiliate_status"]=="OPERATOR_SUBMITTED"'
+          curl -fsS -X POST             "http://127.0.0.1:8000/api/v1/offers/$offer_id/approve"             -H "x-admin-key: $admin_key"             | python -c 'import json,sys; assert json.load(sys.stdin)["status"]=="APPROVED"'
+          blocked=$(curl -s -o /dev/null -w '%{http_code}' -X POST             "http://127.0.0.1:8000/api/v1/offers/$offer_id/publish"             -H "x-admin-key: $admin_key")
+          test "$blocked" = 409
+          status=$(curl -fsS 'http://127.0.0.1:8000/api/v1/affiliates/mercado-livre/status'             -H "x-admin-key: $admin_key")
+          printf '%s' "$status" | python -c             'import json,sys; x=json.load(sys.stdin); assert not x["connected"]; assert not x["auto_generation_available"]'
       - name: Logs em caso de falha
         if: failure()
         run: docker compose --env-file .env.example logs bot || true

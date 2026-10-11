@@ -15,6 +15,14 @@ class DuplicateOffer(Exception):
     pass
 
 
+class AffiliateLinkRequired(Exception):
+    pass
+
+
+class AffiliateOfferNotEditable(Exception):
+    pass
+
+
 class AlreadyPublishedOrInProgress(Exception):
     pass
 
@@ -80,7 +88,14 @@ class SQLiteStore:
                 ).read_text()
                 conn.executescript(migration)
                 conn.execute("PRAGMA user_version = 4")
-            elif version != 4:
+                version = 4
+            if version == 4:
+                migration = Path(__file__).parent.joinpath(
+                    "migrations/005_affiliate_links.sql"
+                ).read_text()
+                conn.executescript(migration)
+                conn.execute("PRAGMA user_version = 5")
+            elif version != 5:
                 raise RuntimeError(f"Versão do SQLite incompatível: {version}")
 
     def health(self) -> bool:
@@ -94,37 +109,102 @@ class SQLiteStore:
                 conn.execute(
                     """INSERT INTO offers
                     (id, source, source_item_id, title, price_cents, reference_price_cents,
-                     affiliate_url, image_url, status, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                     affiliate_url, product_url, image_url, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (offer_id, data["source"], data["source_item_id"], data["title"],
                      data["price_cents"], data.get("reference_price_cents"),
-                     data["affiliate_url"], data.get("image_url"),
-                     OfferStatus.DRAFT, utc_now()),
+                     data["affiliate_url"], data.get("product_url"),
+                     data.get("image_url"), OfferStatus.DRAFT, utc_now()),
                 )
         except sqlite3.IntegrityError as exc:
             raise DuplicateOffer from exc
         return self.get_offer(offer_id)
 
+    @staticmethod
+    def present_offer(row: sqlite3.Row) -> dict:
+        offer = dict(row)
+        if offer["source"] == "mercado_livre":
+            # Coluna v1 'affiliate_url' continha URL comum e nunca foi atestada.
+            offer["affiliate_url"] = offer["affiliate_link_url"]
+            offer["affiliate_status"] = (
+                "OPERATOR_SUBMITTED" if offer["affiliate_link_url"] else "MISSING"
+            )
+        else:
+            offer["product_url"] = offer["product_url"] or offer["affiliate_url"]
+            offer["affiliate_status"] = "LEGACY_UNVERIFIED"
+        return offer
+
     def get_offer(self, offer_id: str) -> dict | None:
         with self.connect() as conn:
             row = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
-            return dict(row) if row else None
+            return self.present_offer(row) if row else None
 
     def list_offers(self, limit: int = 50) -> list[dict]:
         with self.connect() as conn:
             rows = conn.execute(
                 "SELECT * FROM offers ORDER BY created_at DESC, id DESC LIMIT ?", (limit,)
             ).fetchall()
-            return [dict(row) for row in rows]
+            return [self.present_offer(row) for row in rows]
 
     def approve(self, offer_id: str) -> dict | None:
         with self.connect() as conn:
+            current = conn.execute(
+                "SELECT source, status, affiliate_link_url FROM offers WHERE id = ?",
+                (offer_id,),
+            ).fetchone()
+            if current is None:
+                return None
+            if (current["status"] == OfferStatus.DRAFT
+                    and current["source"] == "mercado_livre"
+                    and not current["affiliate_link_url"]):
+                raise AffiliateLinkRequired
             conn.execute(
                 """UPDATE offers SET status = ?, approved_at = ?
                 WHERE id = ? AND status = ?""",
                 (OfferStatus.APPROVED, utc_now(), offer_id, OfferStatus.DRAFT),
             )
         return self.get_offer(offer_id)
+
+    def register_affiliate_link(self, offer_id: str, url: str) -> dict | None:
+        with self.connect() as conn:
+            current = conn.execute(
+                "SELECT id, source, status, product_url FROM offers WHERE id = ?",
+                (offer_id,),
+            ).fetchone()
+            if current is None:
+                return None
+            if (current["status"] != OfferStatus.DRAFT
+                    or current["source"] != "mercado_livre"
+                    or not current["product_url"]):
+                raise AffiliateOfferNotEditable
+            if conn.execute(
+                "SELECT 1 FROM publications WHERE offer_id = ? LIMIT 1", (offer_id,)
+            ).fetchone():
+                raise AffiliateOfferNotEditable
+            conn.execute(
+                """UPDATE offers SET affiliate_link_url = ?,
+                   affiliate_link_provenance = 'OPERATOR_SUBMITTED',
+                   affiliate_registered_at = ?
+                   WHERE id = ? AND status = ?""",
+                (url, utc_now(), offer_id, OfferStatus.DRAFT),
+            )
+        return self.get_offer(offer_id)
+
+    def affiliate_connection_status(self) -> dict:
+        with self.connect() as conn:
+            record = conn.execute(
+                """SELECT provider, status, external_account_id, account_label,
+                   authorized_permissions, verified_at FROM affiliate_integrations
+                   WHERE provider = 'mercado_livre'"""
+            ).fetchone()
+        return {
+            "provider": record["provider"],
+            "status": record["status"],
+            "connected": False,
+            "auto_generation_available": False,
+            "permissions": [],
+            "connection_method": "NOT_CONFIGURED",
+        }
 
     def claim_publication(self, offer_id: str, group_jid: str) -> dict:
         publication_id = str(uuid4())
@@ -259,11 +339,12 @@ class SQLiteStore:
                 created = conn.execute(
                     """INSERT OR IGNORE INTO offers
                     (id, source, source_item_id, title, price_cents,
-                     reference_price_cents, affiliate_url, image_url, status, created_at)
-                    VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)""",
+                     reference_price_cents, affiliate_url, product_url,
+                     image_url, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)""",
                     (offer_id, search["source"], offer_source_id, row["title"],
-                     row["price_cents"], row["product_url"], row["image_url"],
-                     OfferStatus.DRAFT, utc_now()),
+                     row["price_cents"], row["product_url"],
+                     row["product_url"], row["image_url"], OfferStatus.DRAFT, utc_now()),
                 ).rowcount == 1
                 offer = conn.execute(
                     """SELECT id, status FROM offers

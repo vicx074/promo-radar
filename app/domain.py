@@ -30,7 +30,13 @@ def format_offer(offer: dict) -> str:
     discount = discount_percent(offer["price_cents"], offer["reference_price_cents"])
     if discount:
         lines.append(f"{discount}% abaixo do preço de referência informado")
-    lines += [f"Loja: {offer['source']}", f"Confira: {offer['affiliate_url']}", "",
-              "*Publicidade:* este link pode gerar comissão de afiliado.",
-              "Preço e estoque sujeitos a alteração."]
+    affiliate_url = offer.get("affiliate_url")
+    product_url = offer.get("product_url")
+    destination = affiliate_url or product_url
+    lines += [f"Loja: {offer['source']}", f"Confira: {destination}"]
+    if affiliate_url:
+        lines += ["", "*Publicidade:* este link pode gerar comissão de afiliado."]
+    else:
+        lines += ["", "Link comum do produto; sem rastreamento de afiliado cadastrado."]
+    lines.append("Preço e estoque sujeitos a alteração.")
     return "\n".join(lines)

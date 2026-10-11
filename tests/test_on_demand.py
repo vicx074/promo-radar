@@ -75,7 +75,7 @@ def test_search_on_demand_and_select_without_whatsapp(tmp_path):
         assert item["image_url"] == "https://http2.mlstatic.com/test.jpg"
         assert item["promotion_verified"] is False
         assert item["price_history_available"] is False
-        assert client.get("/health").json()["schema_version"] == 4
+        assert client.get("/health").json()["schema_version"] == 5
         assert client.get("/api/v1/offers", headers={"x-admin-key": "test-admin-key"}
                           ).json() == []
         created = select(client, result["search_id"], ["MLBmouse"])
@@ -89,7 +89,8 @@ def test_search_on_demand_and_select_without_whatsapp(tmp_path):
         assert offer["reference_price_cents"] is None
         assert offer["price_cents"] == item["price_cents"]
         assert offer["image_url"] == item["image_url"]
-        assert offer["affiliate_url"] == item["product_url"]
+        assert offer["affiliate_url"] is None
+        assert offer["product_url"] == item["product_url"]
         assert offer["image_sha256"] is None
         again = select(client, result["search_id"], ["MLBmouse"]).json()
         assert again["selected"][0]["created"] is False
@@ -170,6 +171,15 @@ def test_existing_approved_offer_is_not_modified_or_republished(tmp_path):
         first = search(client, "mouse").json()
         created = select(client, first["search_id"], ["MLBmouse"]).json()
         offer_id = created["selected"][0]["offer_id"]
+        registered = client.post(
+            f"/api/v1/offers/{offer_id}/affiliate-link",
+            headers={"x-admin-key": "test-admin-key"},
+            json={
+                "affiliate_url": "https://meli.la/EXEMPLO",
+                "product_match_confirmed": True,
+            },
+        )
+        assert registered.status_code == 200
         approved = client.post(
             f"/api/v1/offers/{offer_id}/approve",
             headers={"x-admin-key": "test-admin-key"},
@@ -203,7 +213,7 @@ def test_preserves_existing_v3_data_after_upgrade(tmp_path):
                    'https://example.org/old', 'APPROVED', '2026-10-10T00:00:00+00:00')"""
         )
     with TestClient(create_app(config, publisher=NeverSend())) as client:
-        assert client.get("/health").json()["schema_version"] == 4
+        assert client.get("/health").json()["schema_version"] == 5
         assert client.get("/api/v1/offers/old",
                           headers={"x-admin-key": "test-admin-key"}
                           ).json()["status"] == "APPROVED"
