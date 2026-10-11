@@ -5,7 +5,7 @@ import {formatDate} from "../lib/format";
 import type {Publication} from "../types";
 import {Feedback} from "../components/ui/Feedback";
 
-export function HistoryPage({adminKey}: {adminKey: string}) {
+export function HistoryPage() {
   const [id, setId] = useState("");
   const [record, setRecord] = useState<Publication | null>(null);
   const [busy, setBusy] = useState(false);
@@ -16,7 +16,7 @@ export function HistoryPage({adminKey}: {adminKey: string}) {
     if (!/^[0-9a-f-]{36}$/i.test(code)) { setError("Informe um UUID de publicação válido."); return; }
     setBusy(true);setError("");setRecord(null);
     try {
-      setRecord(await apiRequest<Publication>(adminKey, "/api/v1/publications/" + encodeURIComponent(code)));
+      setRecord(await apiRequest<Publication>( "/api/v1/publications/" + encodeURIComponent(code)));
     } catch(err) {setError(errorMessage(err));}
     finally {setBusy(false);}
   }

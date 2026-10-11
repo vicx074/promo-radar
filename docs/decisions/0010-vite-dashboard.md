@@ -19,3 +19,7 @@ O Promo Radar precisa de um frontend simples, componentizado e responsivo para p
 - Não disponibilizar para usuários na internet com ADMIN_API_KEY compartilhada; antes disso, implantar autenticação de usuários, autorização e anti-CSRF conforme arquitetura de sessões.
 - Campanhas, destinos, histórico paginado, fonte de catálogo live autorizada e integração oficial para geração de links permanecem etapas futuras.
 - A interface, por si só, não comprova comissão, entrega WhatsApp ou validade comercial do produto.
+
+## Atualização ADR 0011
+
+A autenticação por `x-admin-key` **não é mais usada pelo navegador**; foi substituída por sessão cookie segura e token CSRF (ver [ADR 0011](0011-private-single-owner-auth.md)). A chave permanece somente como interface legada para testes/CLI local, desligada na VPS. Interface organizada para um único operador, não SaaS.

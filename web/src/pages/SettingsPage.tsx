@@ -4,17 +4,17 @@ import {apiRequest, errorMessage} from "../lib/api";
 import type {AffiliateConnection} from "../types";
 import {Feedback} from "../components/ui/Feedback";
 
-export function SettingsPage({adminKey}: {adminKey: string}) {
+export function SettingsPage() {
   const [account, setAccount] = useState<AffiliateConnection | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   async function reload() {
     setLoading(true);setError("");
-    try {setAccount(await apiRequest<AffiliateConnection>(adminKey, "/api/v1/affiliates/mercado-livre/status"));}
+    try {setAccount(await apiRequest<AffiliateConnection>( "/api/v1/affiliates/mercado-livre/status"));}
     catch (err) {setError(errorMessage(err));}
     finally {setLoading(false);}
   }
-  useEffect(() => {void reload();}, [adminKey]);
+  useEffect(() => {void reload();}, []);
   return <div className="settings-grid">
     <section className="card setting-card">
       <div className="setting-top"><span className="setting-provider"><Link2 size={22}/></span>
@@ -35,8 +35,8 @@ export function SettingsPage({adminKey}: {adminKey: string}) {
     <section className="card setting-card security-card">
       <div className="setting-top"><span className="setting-provider"><KeyRound size={22}/></span><span className="pill pill-good"><CircleCheck size={14}/> Ativo</span></div>
       <h2>Acesso administrativo</h2>
-      <p>O painel autentica solicitações por meio da chave <code>x-admin-key</code>.</p>
-      <div className="security-reminder"><ShieldCheck size={21}/><span><strong>Sua chave não é persistida</strong><small>Ela fica somente na memória desta aba e é descartada ao sair ou atualizar a página.</small></span></div>
+      <p>O painel é protegido por uma senha única e sessão segura no servidor.</p>
+      <div className="security-reminder"><ShieldCheck size={21}/><span><strong>Senha protegida por Argon2id</strong><small>O navegador recebe um cookie HttpOnly, sem acesso à senha ou à chave administrativa.</small></span></div>
       <div className="security-reminder"><LockKeyhole size={21}/><span><strong>Envio bloqueado por padrão</strong><small>O backend exige aprovação explícita e SEND_ENABLED=true antes de publicar.</small></span></div>
     </section>
   </div>;

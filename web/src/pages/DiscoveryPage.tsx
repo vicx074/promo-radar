@@ -25,8 +25,8 @@ function ProductCard({item, selected, onToggle}: {
   </button>;
 }
 
-export function DiscoveryPage({adminKey,onOpenOffer}: {
-  adminKey:string; onOpenOffer:(offerId:string)=>void;
+export function DiscoveryPage({onOpenOffer}: {
+  onOpenOffer:(offerId:string)=>void;
 }) {
   const [query,setQuery]=useState("");
   const [result,setResult]=useState<SearchResponse|null>(null);
@@ -41,7 +41,7 @@ export function DiscoveryPage({adminKey,onOpenOffer}: {
     if(term.length<2)return;
     setQuery(term);setSearching(true);setError("");setNotice("");setResult(null);setSelected(new Set());
     try {
-      const response=await apiRequest<SearchResponse>(adminKey,"/api/v1/discovery/search",{
+      const response=await apiRequest<SearchResponse>("/api/v1/discovery/search",{
         method:"POST",body:{query:term,limit:20},
       });
       setResult(response);
@@ -60,7 +60,7 @@ export function DiscoveryPage({adminKey,onOpenOffer}: {
     if(!result||selected.size===0)return;
     setSaving(true);setError("");setNotice("");
     try {
-      const response=await apiRequest<SelectionResponse>(adminKey,"/api/v1/discovery/select",{
+      const response=await apiRequest<SelectionResponse>("/api/v1/discovery/select",{
         method:"POST",body:{search_id:result.search_id,source_item_ids:Array.from(selected)},
       });
       const first=response.selected[0];

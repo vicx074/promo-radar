@@ -1,0 +1,97 @@
+name: Owner Login Integration (Docker)
+
+on:
+  push:
+    paths:
+      - "app/**"
+      - "web/**"
+      - "compose.yaml"
+      - ".github/workflows/owner-e2e.yml"
+  pull_request:
+    paths:
+      - "app/**"
+      - "web/**"
+      - "compose.yaml"
+      - ".github/workflows/owner-e2e.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  login-through-nginx:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend and web without Evolution
+        run: docker compose --env-file .env.example build bot web
+      - name: Generate a disposable Argon2id hash inside backend container
+        run: |
+          hash=$(docker compose --env-file .env.example run --rm --no-deps -T bot \
+            python -c "from argon2 import PasswordHasher; print(PasswordHasher().hash('somente-senha-descartavel-ci'))")
+          printf 'OWNER_PASSWORD_HASH=%s\n' "$hash" >> "$GITHUB_ENV"
+          echo 'SINGLE_OWNER_MODE=false' >> "$GITHUB_ENV"
+          echo 'SESSION_COOKIE_SECURE=false' >> "$GITHUB_ENV"
+          echo 'ALLOW_ADMIN_API_KEY=false' >> "$GITHUB_ENV"
+      - name: Start private app in isolated CI mode
+        run: docker compose --env-file .env.example up -d --no-deps bot web
+      - name: Test login, cookie and CSRF over Nginx
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5173/ -o /tmp/pr-index.html; then break; fi
+            sleep 2
+          done
+          grep -q 'Promo Radar' /tmp/pr-index.html
+
+          # Nginx pode iniciar antes de o Uvicorn abrir 8000.
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5173/health \
+              | python -c 'import json,sys; assert json.load(sys.stdin)["status"]=="ok"' 2>/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:5173/health \
+            | python -c 'import json,sys; assert json.load(sys.stdin)["schema_version"]==6'
+
+          test "$(curl -s -o /dev/null -w '%{http_code}' \
+            http://127.0.0.1:5173/api/v1/offers)" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' \
+            http://127.0.0.1:5173/api/v1/offers \
+            -H 'x-admin-key: REPLACE_WITH_LONG_RANDOM_KEY')" = 401
+
+          result=$(curl -fsS -c /tmp/pr-cookies.txt \
+            -H 'Origin: http://127.0.0.1:5173' \
+            -H 'Content-Type: application/json' \
+            -d '{"password":"somente-senha-descartavel-ci"}' \
+            http://127.0.0.1:5173/api/v1/auth/login)
+          csrf=$(printf '%s' "$result" | python -c \
+            'import sys,json; x=json.load(sys.stdin); assert x["authenticated"]; print(x["csrf_token"])')
+          test -n "$csrf"
+          curl -fsS -b /tmp/pr-cookies.txt \
+            http://127.0.0.1:5173/api/v1/offers \
+            | python -c 'import json,sys; assert isinstance(json.load(sys.stdin),list)'
+          test "$(curl -s -b /tmp/pr-cookies.txt -o /dev/null -w '%{http_code}' \
+            -H 'Origin: http://127.0.0.1:5173' -H 'Content-Type: application/json' \
+            -d '{"query":"mouse"}' \
+            http://127.0.0.1:5173/api/v1/discovery/search)" = 403
+          test "$(curl -s -b /tmp/pr-cookies.txt -o /dev/null -w '%{http_code}' \
+            -H 'Origin: http://127.0.0.1:5173' -H "x-csrf-token: $csrf" \
+            -H 'Content-Type: application/json' -d '{"query":"mouse"}' \
+            http://127.0.0.1:5173/api/v1/discovery/search)" = 503
+          curl -fsS -b /tmp/pr-cookies.txt \
+            -H 'Origin: http://127.0.0.1:5173' -H "x-csrf-token: $csrf" \
+            -X POST http://127.0.0.1:5173/api/v1/auth/logout \
+            | python -c 'import json,sys; assert not json.load(sys.stdin)["authenticated"]'
+          test "$(curl -s -b /tmp/pr-cookies.txt -o /dev/null -w '%{http_code}' \
+            http://127.0.0.1:5173/api/v1/offers)" = 401
+      - name: Logs on failure
+        if: failure()
+        run: docker compose --env-file .env.example logs --tail=80 bot web || true
+      - name: Stop without wiping persistent volumes
+        if: always()
+        run: |
+          rm -f /tmp/pr-cookies.txt
+          docker compose --env-file .env.example down
