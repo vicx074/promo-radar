@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
 from app.affiliate import AffiliateLinkError, validate_official_link
 from app.catalog import CatalogUnavailable, CsvCatalogProvider, InvalidCatalog
 from app.config import Settings
+from app.discovery import _valid_product_url
 from app.domain import PublicationStatus, format_offer
 from app.evolution import EvolutionPublisher
 from app.media import MediaError, cache_image, download_image, load_image
@@ -42,8 +43,13 @@ class OfferCreate(BaseModel):
 
     @model_validator(mode="after")
     def require_product_or_link(self):
-        if self.source == "mercado_livre" and not self.product_url:
-            raise ValueError("Ofertas Mercado Livre exigem product_url")
+        if self.source == "mercado_livre":
+            if not self.product_url:
+                raise ValueError("Ofertas Mercado Livre exigem product_url")
+            if not _valid_product_url(str(self.product_url)):
+                raise ValueError("product_url deve ser uma URL de produto Mercado Livre")
+            if self.affiliate_url is not None:
+                raise ValueError("Cadastre link de afiliado no endpoint /affiliate-link")
         if self.source != "mercado_livre" and not self.affiliate_url:
             raise ValueError("Informe affiliate_url para esta fonte")
         return self
