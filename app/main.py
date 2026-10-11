@@ -2,10 +2,11 @@ import hmac
 from contextlib import asynccontextmanager
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
 
 from app.affiliate import AffiliateLinkError, validate_official_link
+from app.auth import (OwnerAuth, cookie_name, verify_origin, verify_password)
 from app.catalog import CatalogUnavailable, CsvCatalogProvider, InvalidCatalog
 from app.config import Settings
 from app.discovery import _valid_product_url
@@ -22,6 +23,10 @@ from app.storage import (
     SearchSnapshotNotFound,
     SQLiteStore,
 )
+
+
+class OwnerLogin(BaseModel):
+    password: str = Field(min_length=1, max_length=1024)
 
 
 class OfferCreate(BaseModel):
@@ -106,6 +111,7 @@ def create_app(
     settings: Settings, publisher=None, image_loader=None, catalog_provider=None
 ) -> FastAPI:
     store = SQLiteStore(settings.sqlite_path)
+    owner_auth = OwnerAuth(store)
     publisher = publisher or EvolutionPublisher(
         settings.evolution_base_url, settings.evolution_api_key, settings.evolution_instance
     )
@@ -120,22 +126,112 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        if not settings.admin_api_key:
+        if settings.allow_admin_api_key and not settings.admin_api_key:
             raise RuntimeError("Defina ADMIN_API_KEY antes de iniciar")
+        if settings.single_owner_mode:
+            if not settings.owner_password_hash.startswith("$argon2id$"):
+                raise RuntimeError("Configure OWNER_PASSWORD_HASH Argon2id para acesso privado")
+            if not settings.session_cookie_secure:
+                raise RuntimeError("A VPS exige SESSION_COOKIE_SECURE=true")
+            if settings.allow_admin_api_key:
+                raise RuntimeError("Na VPS, configure ALLOW_ADMIN_API_KEY=false")
         store.initialize()
         yield
 
     app = FastAPI(title="Promo Radar", version="0.1.0", lifespan=lifespan)
 
-    def admin(x_admin_key: str | None = Header(default=None)) -> None:
-        if not x_admin_key or not hmac.compare_digest(x_admin_key, settings.admin_api_key):
-            raise HTTPException(status_code=401, detail="Chave administrativa inválida")
+    def session_only(request: Request) -> None:
+        session = owner_auth.read_session(
+            request.cookies.get(cookie_name(settings.session_cookie_secure))
+        )
+        if session is None:
+            raise HTTPException(status_code=401, detail="Entre novamente no painel")
+        if request.method not in {"GET", "HEAD", "OPTIONS"}:
+            if not verify_origin(
+                request.headers.get("origin"),
+                request.headers.get("host"),
+                secure=settings.session_cookie_secure,
+            ):
+                raise HTTPException(status_code=403, detail="Origem da solicitação inválida")
+            submitted = request.headers.get("x-csrf-token", "")
+            if not submitted or not hmac.compare_digest(submitted, session.csrf_token):
+                raise HTTPException(status_code=403, detail="Proteção CSRF inválida")
+
+    def admin(request: Request, x_admin_key: str | None = Header(default=None)) -> None:
+        # A chave é compatibilidade para CLI/CI local; desativada em VPS privada.
+        if (
+            settings.allow_admin_api_key
+            and x_admin_key
+            and hmac.compare_digest(x_admin_key, settings.admin_api_key)
+        ):
+            return
+        session_only(request)
+
+    @app.post("/api/v1/auth/login")
+    def login(payload: OwnerLogin, request: Request, response: Response):
+        if not verify_origin(
+            request.headers.get("origin"),
+            request.headers.get("host"),
+            secure=settings.session_cookie_secure,
+        ):
+            raise HTTPException(status_code=403, detail="Origem da solicitação inválida")
+        if not settings.owner_password_hash:
+            raise HTTPException(status_code=503, detail="Senha do painel não configurada")
+        remaining = owner_auth.throttle_remaining()
+        if remaining:
+            raise HTTPException(
+                status_code=429,
+                detail="Muitas tentativas. Aguarde antes de tentar novamente.",
+                headers={"Retry-After": str(remaining)},
+            )
+        if not verify_password(payload.password, settings.owner_password_hash):
+            owner_auth.failed_login()
+            raise HTTPException(status_code=401, detail="Senha incorreta")
+        token, session = owner_auth.issue_session()
+        response.set_cookie(
+            key=cookie_name(settings.session_cookie_secure),
+            value=token,
+            path="/",
+            secure=settings.session_cookie_secure,
+            httponly=True,
+            samesite="strict",
+            max_age=12 * 60 * 60,
+        )
+        response.headers["Cache-Control"] = "no-store"
+        return {"authenticated": True, "csrf_token": session.csrf_token,
+                "expires_at": session.expires_at}
+
+    @app.get("/api/v1/auth/session")
+    def session(request: Request, response: Response):
+        current = owner_auth.read_session(
+            request.cookies.get(cookie_name(settings.session_cookie_secure))
+        )
+        if not current:
+            raise HTTPException(status_code=401, detail="Sessão expirada")
+        response.headers["Cache-Control"] = "no-store"
+        return {"authenticated": True, "csrf_token": current.csrf_token,
+                "expires_at": current.expires_at}
+
+    @app.post("/api/v1/auth/logout", dependencies=[Depends(session_only)])
+    def logout(request: Request, response: Response):
+        owner_auth.revoke(
+            request.cookies.get(cookie_name(settings.session_cookie_secure))
+        )
+        response.delete_cookie(
+            key=cookie_name(settings.session_cookie_secure),
+            path="/",
+            secure=settings.session_cookie_secure,
+            httponly=True,
+            samesite="strict",
+        )
+        response.headers["Cache-Control"] = "no-store"
+        return {"authenticated": False}
 
     @app.get("/health")
     def health():
         if not store.health():
             raise HTTPException(status_code=503, detail="SQLite indisponível")
-        return {"status": "ok", "schema_version": 5}
+        return {"status": "ok", "schema_version": 6}
 
     @app.post("/api/v1/discovery/search", dependencies=[Depends(admin)])
     def search_catalog(payload: CatalogSearch):
