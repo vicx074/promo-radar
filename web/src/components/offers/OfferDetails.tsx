@@ -9,8 +9,8 @@ import type {Offer,OfferPreview,Publication} from "../../types";
 import {Feedback} from "../ui/Feedback";
 import {ProductPhoto} from "../ui/ProductPhoto";
 
-export function OfferDetails({adminKey,offerId,onUpdated}:{
-  adminKey:string;offerId:string;onUpdated:()=>void;
+export function OfferDetails({offerId,onUpdated}:{
+  offerId:string;onUpdated:()=>void;
 }) {
   const [offer,setOffer]=useState<Offer|null>(null);
   const [preview,setPreview]=useState<OfferPreview|null>(null);
@@ -26,14 +26,14 @@ export function OfferDetails({adminKey,offerId,onUpdated}:{
     setLoading(true);setError("");setSuccess("");
     try {
       const [o,p]=await Promise.all([
-        apiRequest<Offer>(adminKey,"/api/v1/offers/"+encodeURIComponent(offerId)),
-        apiRequest<OfferPreview>(adminKey,"/api/v1/offers/"+encodeURIComponent(offerId)+"/preview"),
+        apiRequest<Offer>("/api/v1/offers/"+encodeURIComponent(offerId)),
+        apiRequest<OfferPreview>("/api/v1/offers/"+encodeURIComponent(offerId)+"/preview"),
       ]);
       setOffer(o);setPreview(p);
     }catch(err){setError(errorMessage(err));}
     finally{setLoading(false);}
   }
-  useEffect(()=>{void load();},[offerId,adminKey]);
+  useEffect(()=>{void load();},[offerId]);
 
   async function execute(task:()=>Promise<void>){
     setBusy(true);setError("");setSuccess("");
@@ -46,12 +46,12 @@ export function OfferDetails({adminKey,offerId,onUpdated}:{
     event.preventDefault();
     if(!confirmed||!link.trim())return;
     void execute(async()=>{
-      const o=await apiRequest<Offer>(adminKey,
+      const o=await apiRequest<Offer>(
         "/api/v1/offers/"+encodeURIComponent(offerId)+"/affiliate-link",{
           method:"POST",body:{affiliate_url:link.trim(),product_match_confirmed:true},
         });
       setOffer(o);
-      setPreview(await apiRequest<OfferPreview>(adminKey,"/api/v1/offers/"+encodeURIComponent(offerId)+"/preview"));
+      setPreview(await apiRequest<OfferPreview>("/api/v1/offers/"+encodeURIComponent(offerId)+"/preview"));
       setLink("");setConfirmed(false);
       setSuccess("Link cadastrado como informado por você. O formato não comprova comissão.");
       onUpdated();
@@ -60,15 +60,15 @@ export function OfferDetails({adminKey,offerId,onUpdated}:{
 
   function prepareImage(){
     void execute(async()=>{
-      await apiRequest(adminKey,"/api/v1/offers/"+encodeURIComponent(offerId)+"/prepare-media",{method:"POST"});
-      setPreview(await apiRequest<OfferPreview>(adminKey,"/api/v1/offers/"+encodeURIComponent(offerId)+"/preview"));
+      await apiRequest("/api/v1/offers/"+encodeURIComponent(offerId)+"/prepare-media",{method:"POST"});
+      setPreview(await apiRequest<OfferPreview>("/api/v1/offers/"+encodeURIComponent(offerId)+"/preview"));
       setSuccess("Imagem otimizada com sucesso e pronta para revisão.");
     });
   }
 
   function approve(){
     void execute(async()=>{
-      const o=await apiRequest<Offer>(adminKey,"/api/v1/offers/"+encodeURIComponent(offerId)+"/approve",{method:"POST"});
+      const o=await apiRequest<Offer>("/api/v1/offers/"+encodeURIComponent(offerId)+"/approve",{method:"POST"});
       setOffer(o);
       setSuccess("Oferta aprovada. Nenhuma mensagem foi enviada.");
       onUpdated();
@@ -78,7 +78,7 @@ export function OfferDetails({adminKey,offerId,onUpdated}:{
   function publish(){
     if(!permission||!window.confirm("Confirma a publicação manual desta oferta no grupo configurado no backend? Verifique antes se o destino é permitido."))return;
     void execute(async()=>{
-      const response=await apiRequest<Publication>(adminKey,
+      const response=await apiRequest<Publication>(
         "/api/v1/offers/"+encodeURIComponent(offerId)+"/publish",{method:"POST"});
       setSuccess("Aceite pela Evolution registrado (não confirma entrega). Publicação ID: "+response.id);
       setPermission(false);
