@@ -1,4 +1,15 @@
 services:
+  web:
+    build:
+      context: ./web
+      target: runtime
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5173:80"
+    depends_on:
+      bot:
+        condition: service_started
+
   bot:
     build:
       context: .
