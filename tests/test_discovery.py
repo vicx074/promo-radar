@@ -104,7 +104,7 @@ def test_malformed_catalog_rejected_before_database_mutation(tmp_path):
 
 
 def test_requires_distinct_id_and_numeric_integer_cents(tmp_path):
-    file = write_catalog(tmp_path, "199,90")
+    file = write_catalog(tmp_path, "199.90")
     with pytest.raises(ValueError, match="centavos"):
         read_catalog(file)
     file.write_text(
