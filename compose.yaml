@@ -20,8 +20,8 @@ services:
         condition: service_started
 
   evolution:
-    # Versão conservadora v2; testar integração em grupo antes de upgrade.
-    image: atendai/evolution-api:v2.1.1
+    # Versão estável publicada no namespace oficial (ADR 0004).
+    image: evoapicloud/evolution-api:v2.3.7
     restart: unless-stopped
     ports:
       - "127.0.0.1:8085:8080"
