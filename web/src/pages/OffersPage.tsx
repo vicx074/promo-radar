@@ -9,8 +9,8 @@ import {OfferDetails} from "../components/offers/OfferDetails";
 
 type FilterOption="ALL"|"DRAFT"|"APPROVED";
 
-export function OffersPage({adminKey,focusOfferId,onClearFocus}: {
-  adminKey:string;focusOfferId:string|null;onClearFocus:()=>void;
+export function OffersPage({focusOfferId,onClearFocus}: {
+  focusOfferId:string|null;onClearFocus:()=>void;
 }) {
   const [offers,setOffers]=useState<Offer[]>([]);
   const [filter,setFilter]=useState<FilterOption>("ALL");
@@ -20,13 +20,13 @@ export function OffersPage({adminKey,focusOfferId,onClearFocus}: {
   async function reload(){
     setLoading(true);setError("");
     try {
-      const items=await apiRequest<Offer[]>(adminKey,"/api/v1/offers?limit=100");
+      const items=await apiRequest<Offer[]>("/api/v1/offers?limit=100");
       setOffers(items);
       setActiveId(current=>current??focusOfferId??items[0]?.id??null);
     }catch(err){setError(errorMessage(err));}
     finally{setLoading(false);}
   }
-  useEffect(()=>{void reload();},[adminKey]);
+  useEffect(()=>{void reload();},[]);
   useEffect(()=>{if(focusOfferId){setActiveId(focusOfferId);onClearFocus();}},[focusOfferId,onClearFocus]);
   const items=offers.filter(x=>filter==="ALL"||x.status===filter);
   const drafts=offers.filter(x=>x.status==="DRAFT").length;
@@ -52,7 +52,7 @@ export function OffersPage({adminKey,focusOfferId,onClearFocus}: {
          <span className="offer-row-side"><span className={"pill "+(offer.status==="APPROVED"?"pill-good":"pill-warn")}>{offer.status==="APPROVED"?<CheckCircle2 size={13}/>:<span className="status-dot"/>}{offer.status==="APPROVED"?"Aprovada":"Rascunho"}</span><ArrowRight size={16}/></span>
        </button>)}</div>}
     </section>
-    {activeId&&<OfferDetails key={activeId} adminKey={adminKey} offerId={activeId} onUpdated={()=>void reload()}/>}
+    {activeId&&<OfferDetails key={activeId} offerId={activeId} onUpdated={()=>void reload()}/>}
     {!activeId&&!loading&&<div className="card select-to-review"><PackageCheck size={24}/><p>Selecione uma oferta para revisá-la.</p></div>}
   </div>;
 }
