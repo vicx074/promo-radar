@@ -17,6 +17,8 @@ class Settings:
     session_cookie_secure: bool = True
     allow_admin_api_key: bool = True
     single_owner_mode: bool = False
+    discovery_provider: str = "csv"
+    apify_token: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -32,6 +34,8 @@ class Settings:
             session_cookie_secure=os.getenv("SESSION_COOKIE_SECURE", "true").lower() == "true",
             allow_admin_api_key=os.getenv("ALLOW_ADMIN_API_KEY", "true").lower() == "true",
             single_owner_mode=os.getenv("SINGLE_OWNER_MODE", "false").lower() == "true",
+            discovery_provider=os.getenv("DISCOVERY_PROVIDER", "apify").lower(),
+            apify_token=os.getenv("APIFY_TOKEN", ""),
             media_allowed_hosts=tuple(
                 item.strip().lower()
                 for item in os.getenv("MEDIA_ALLOWED_HOSTS", "http2.mlstatic.com").split(",")

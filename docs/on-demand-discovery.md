@@ -1,3 +1,5 @@
+> **Atenção — atualização da PR #9:** este guia descreve exclusivamente o **modo legado CSV**, agora usado ao configurar `DISCOVERY_PROVIDER=csv`. A configuração padrão de produção mudou para `DISCOVERY_PROVIDER=apify`, um scraper terceirizado que exige token e coleta dados sob demanda. Leia [o guia de busca real](live-mercado-livre-search.md). Nada de CSV é apresentado como resultado ao vivo.
+
 # Busca sob demanda por nicho (PR #4)
 
 **Esta etapa não consulta o Mercado Livre pela rede.** Busca somente no CSV de catálogo autorizado, carregado pelo operador, e não cria tarefas recorrentes. O frontend poderá trocar a fonte por uma API oficial/licenciada sem alterar o contrato de busca e seleção.

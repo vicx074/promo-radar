@@ -16,10 +16,10 @@ function ProductCard({item, selected, onToggle}: {
     <span className={"checkmark "+(selected?"on":"")}>{selected&&<Check size={14}/>}</span>
     <ProductPhoto url={item.image_url} title={item.title}/>
     <div className="catalog-card-body">
-      <span className="catalog-tag">MERCADO LIVRE · CATÁLOGO</span>
+      <span className="catalog-tag">MERCADO LIVRE · PRODUTO</span>
       <strong title={item.title}>{item.title}</strong>
       <span className="catalog-price">{formatBrl(item.price_cents)}</span>
-      <span className="catalog-meta">Preço informado no catálogo · desconto não verificado</span>
+      <span className="catalog-meta">Preço do anúncio informado pelo provedor</span>
       <span className="catalog-select">{selected?"Selecionado":"Selecionar produto"} <ArrowRight size={14}/></span>
     </div>
   </button>;
@@ -77,7 +77,7 @@ export function DiscoveryPage({onOpenOffer}: {
       <div className="hero-content">
         <div className="hero-badge"><Sparkles size={14}/> CURADORIA INTELIGENTE</div>
         <h2>Encontre produtos.<br/><span>Escolha o que compartilhar.</span></h2>
-        <p>Busque no seu catálogo e monte uma seleção de ofertas com poucos cliques.</p>
+        <p>Busque anúncios reais por palavra-chave e selecione produtos para revisão.</p>
         <form onSubmit={handleSearch} className="hero-search">
           <Search size={20} color="#5280ac"/>
           <input aria-label="Buscar produtos" placeholder="Ex.: mouse gamer, notebook, fones..." value={query}
@@ -91,17 +91,17 @@ export function DiscoveryPage({onOpenOffer}: {
       <div className="hero-illustration" aria-hidden="true"><div className="hero-glyph"><PackageSearch size={80} strokeWidth={1.2}/></div><span className="hero-spark s1">✧</span><span className="hero-spark s2">✳</span></div>
     </section>
 
-    {error&&<Feedback tone="error" onClose={()=>setError("")}>{error}{error.includes("Catálogo local")&&<span> Coloque o CSV autorizado em <code>data/import/catalogo.csv</code> no backend.</span>}</Feedback>}
+    {error&&<Feedback tone="error" onClose={()=>setError("")}>{error}{error.includes("APIFY_TOKEN")&&<span> Configure APIFY_TOKEN no servidor para habilitar a busca ao vivo.</span>}</Feedback>}
     {notice&&<Feedback tone="success" onClose={()=>setNotice("")}>{notice}</Feedback>}
     {!result&&!searching&&<div className="discovery-empty">
       <span className="empty-graphic"><MousePointer2 size={24}/></span>
       <strong>Pronto para encontrar a próxima oferta?</strong>
-      <p>Digite um nicho para consultar seu catálogo. A busca não acessa anúncios ao vivo do Mercado Livre.</p>
+      <p>Digite um nicho para consultar anúncios via provedor externo configurado.</p>
     </div>}
-    {searching&&<div className="loading-card"><div className="spinner"/><p>Consultando os produtos do seu catálogo...</p></div>}
+    {searching&&<div className="loading-card"><div className="spinner"/><p>Buscando anúncios no Mercado Livre...</p></div>}
     {result&&<section className="results">
       <div className="results-header">
-        <div><div className="eyebrow">RESULTADO DA BUSCA</div><h2>{result.items.length} produto{result.items.length===1?"":"s"} encontrado{result.items.length===1?"":"s"}</h2><p>Para “{result.query}” · resultados do arquivo local autorizado</p></div>
+        <div><div className="eyebrow">RESULTADO DA BUSCA</div><h2>{result.items.length} produto{result.items.length===1?"":"s"} encontrado{result.items.length===1?"":"s"}</h2><p>Para “{result.query}” · {result.live ? 'coleta terceirizada (Apify)' : 'catálogo CSV local'}</p></div>
         <div className="results-info"><Clock3 size={15}/> Seleção válida por 45 min</div>
       </div>
       {result.items.length===0?<div className="empty-panel"><PackageSearch size={30}/><h3>Nenhum produto encontrado</h3><p>Tente outro termo ou atualize o catálogo autorizado.</p></div>:
@@ -112,6 +112,6 @@ export function DiscoveryPage({onOpenOffer}: {
         <div className="selection-tray"><span><strong>{selected.size}</strong> produto(s) na seleção <small>Criação de rascunhos — sem envio</small></span><button type="button" className="button primary" onClick={()=>void saveSelection()} disabled={saving||selected.size===0}>{saving?"Salvando...":"Revisar selecionados"}<ArrowRight size={17}/></button></div>
       </>}
     </section>}
-    <div className="source-footnote"><Sparkles size={15}/> A busca consulta apenas <strong>CSV local autorizado</strong>. Preços, estoques e descontos não são verificados em tempo real.</div>
+    <div className="source-footnote"><Sparkles size={15}/> A busca {result?.live ? <>consulta um <strong>scraper terceirizado (Apify)</strong></> : <>usa <strong>catálogo CSV local</strong></>}. Preços, estoque e descontos devem ser conferidos no anúncio antes de publicar.</div>
   </div>;
 }

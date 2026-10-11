@@ -17,6 +17,9 @@ jobs:
 
   docker-smoke:
     runs-on: ubuntu-latest
+    env:
+      # Smoke de catálogo offline: não aciona serviços cobrados em CI.
+      DISCOVERY_PROVIDER: csv
     steps:
       - uses: actions/checkout@v4
       - name: Validar Compose

@@ -128,7 +128,7 @@ A CI executa a suíte Python dentro e fora do container Docker e simula a requis
 
 ## Busca por nicho sob demanda (PR #4)
 
-O painel poderá buscar **quando o operador solicitar**, sem coleta periódica. Nesta versão o catálogo de entrada é o arquivo `./data/import/catalogo.csv`, fornecido de fonte autorizada ou preenchido manualmente — **a aplicação não pesquisa anúncios ao vivo no Mercado Livre**. `POST /api/v1/discovery/search` procura termos no título e devolve `search_id` + cards de produtos (preço em centavos, link e `image_url`, quando disponível). `POST /api/v1/discovery/select` seleciona IDs desse snapshot e cria apenas DRAFT, sem aprovação, otimização de imagem ou envio. A busca expira em 45 minutos, IDs repetidos são rejeitados e a seleção não altera ofertas existentes. A partir do DRAFT, o fluxo de imagem da PR #3 continua inalterado.
+O painel pode buscar **quando o operador solicitar**, sem coleta periódica. No modo legado `DISCOVERY_PROVIDER=csv`, o catálogo de entrada é o arquivo `./data/import/catalogo.csv`, fornecido de fonte autorizada ou preenchido manualmente — **o modo CSV não pesquisa anúncios ao vivo no Mercado Livre**. Para busca real via provedor terceirizado, configure `DISCOVERY_PROVIDER=apify` e `APIFY_TOKEN` (ADR 0012). `POST /api/v1/discovery/search` procura termos no título e devolve `search_id` + cards de produtos (preço em centavos, link e `image_url`, quando disponível). `POST /api/v1/discovery/select` seleciona IDs desse snapshot e cria apenas DRAFT, sem aprovação, otimização de imagem ou envio. A busca expira em 45 minutos, IDs repetidos são rejeitados e a seleção não altera ofertas existentes. A partir do DRAFT, o fluxo de imagem da PR #3 continua inalterado.
 
 Consulte [guia de busca sob demanda](docs/on-demand-discovery.md) e [ADR 0007](docs/decisions/0007-on-demand-search.md). A CI testa busca e seleção em Python e Docker, com catálogo sintético e sem WhatsApp real.
 
@@ -142,7 +142,7 @@ O frontend está em `./web`, com **React 19, Vite 6, TypeScript, Motion/Fancy Co
 
 **Implementado no painel:** entrada por chave administrativa somente na memória, pesquisa no CSV local, seleção DRAFT, lista e revisão de ofertas, cadastro manual de link de afiliado, preparação de JPEG, prévia, aprovação, publicação manual mediante confirmação, estado da integração Mercado Livre e consulta de publicação conhecida por UUID.
 
-**Não implementado:** busca ao vivo no Mercado Livre, conexão OAuth da conta de afiliado, geração automática de links, agendador, gerenciamento visual de grupos e lista completa de histórico. Essas telas mostram explicitamente as limitações, sem simular integração.
+**Não implementado neste frontend originalmente:** busca ao vivo no Mercado Livre (adicionada posteriormente via Apify, com token), conexão OAuth da conta de afiliado, geração automática de links, agendador, gerenciamento visual de grupos e lista completa de histórico. Essas telas mostram explicitamente as limitações, sem simular integração.
 
 **Atenção:** antes de abrir o frontend, use uma versão do backend com migração SQLite v5 (PR #6). O painel não deve ser publicado diretamente na Internet com chave administrativa compartilhada. `SEND_ENABLED=false` continua o padrão. A existência da UI não equivale à validação real de comissão ou entrega ao WhatsApp.
 
@@ -151,3 +151,7 @@ O frontend está em `./web`, com **React 19, Vite 6, TypeScript, Motion/Fancy Co
 O painel **não pede ADMIN_API_KEY**: digite a senha privada configurada na VPS; o backend verifica hash Argon2id, cria sessão com token opaco e cookie `__Host-promo_session` (`Secure`, `HttpOnly`, `SameSite=Strict`). A sessão expira após até 12h ou 30 minutos sem atividade; um novo login revoga o anterior. Operações mutáveis exigem Origin e CSRF. Após 5 senhas erradas, o login fica bloqueado 15 minutos. A VPS deve usar `SINGLE_OWNER_MODE=true`, `ALLOW_ADMIN_API_KEY=false`, `SESSION_COOKIE_SECURE=true` e HTTPS Tailscale Serve. `SEND_ENABLED=false` segue como padrão.
 
 As instruções históricas deste README relativas a digitar `ADMIN_API_KEY` referem-se apenas à API/CLI legada em ambientes de desenvolvimento; **não devem ser usadas para autenticar o navegador nem ativadas em VPS privada**. Os dados permanecem locais no SQLite e os segredos apenas na VPS. Veja [passo a passo da VPS](docs/private-vps.md).
+
+## Busca real no Mercado Livre (provedor terceirizado)
+
+O backend agora suporta `DISCOVERY_PROVIDER=apify`, usando um Actor de scraping terceirizado na Apify quando `APIFY_TOKEN` estiver configurado **apenas na VPS**. O modo CSV continua disponível explicitamente (`DISCOVERY_PROVIDER=csv`). Sem token, a busca retorna HTTP 503 e não inventa produtos. A interface identifica os resultados como coleta terceirizada; preços, disponibilidade e descontos devem ser verificados no anúncio. A busca continua manual, snapshots duram 45 minutos e a seleção só cria DRAFT — geração de link afiliado e envio automático continuam pendentes. Veja o [guia de configuração e validação](docs/live-mercado-livre-search.md) e [ADR 0012](docs/decisions/0012-live-ml-search.md).
