@@ -29,6 +29,8 @@ export interface SearchResponse {
   query: string;
   source: string;
   expires_at: string;
+  provider?: string;
+  live?: boolean;
   items: SearchItem[];
 }
 export interface SelectionResponse {
