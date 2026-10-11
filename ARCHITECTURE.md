@@ -26,3 +26,7 @@ Estado: oferta DRAFT -> APPROVED; publicação ausente -> SENDING -> SENT | UNKN
 ## Separação de links e estado da integração (PR #6)
 
 O schema v5 preserva o `affiliate_url` físico legado para compatibilidade SQLite e acrescenta `product_url` + `affiliate_link_url`, que é a fonte da `affiliate_url` exposta pela API para ML. A migração nunca assume que a URL legada de produto gera comissão. O cadastro de link oficial exige confirmação do operador em uma oferta DRAFT; sem ele não há aprovação nem publicação. `affiliate_integrations` mantém Mercado Livre `DISCONNECTED` enquanto não houver autorização formal; não persiste cookies e não fornece login simulado. Veja [ADR 0009](docs/decisions/0009-affiliate-links-foundation.md).
+
+## Frontend React + Vite
+
+SPA React 19/TypeScript em `web/`, com componentes reutilizáveis, microinteração Fancy Components (MIT), renderização de imagens limitada ao CDN conhecido. Em desenvolvimento, Vite faz proxy de `/api` ao FastAPI; em produção local, Nginx no Compose em 127.0.0.1:5173 reencaminha `/api` para `bot:8000`. O backend continua único dono das regras de negócio, autenticação administrativa, SQLite e chamadas Evolution. `x-admin-key` só fica no estado React, sem cookies nem armazenamento permanente; uso local de administrador, não segurança multiusuário. O estado de geração automática e o agendador permanecem ausentes. Veja [ADR 0010](docs/decisions/0010-vite-dashboard.md).
