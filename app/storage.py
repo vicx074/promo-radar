@@ -209,6 +209,12 @@ class SQLiteStore:
                    WHERE id = ? AND status = ?""",
                 (url, utc_now(), offer_id, OfferStatus.DRAFT),
             )
+            conn.execute(
+                """UPDATE affiliate_link_jobs SET status='CANCELLED',error_code=NULL,
+                   claim_hash=NULL,lease_expires_at=NULL,updated_at=?
+                   WHERE offer_id=? AND status IN ('PENDING','PROCESSING','FAILED')""",
+                (utc_now(), offer_id),
+            )
         return self.get_offer(offer_id)
 
     def affiliate_connection_status(self) -> dict:
@@ -331,7 +337,9 @@ class SQLiteStore:
             ],
         }
 
-    def select_search_items(self, search_id: str, item_ids: list[str]) -> list[dict]:
+    def select_search_items(
+        self, search_id: str, item_ids: list[str], *, queue_affiliate: bool = False
+    ) -> list[dict]:
         """Seleção atômica; valores vêm apenas do snapshot no banco."""
         with self.connect() as conn:
             search = conn.execute(
@@ -368,10 +376,22 @@ class SQLiteStore:
                      row["product_url"], row["image_url"], OfferStatus.DRAFT, utc_now()),
                 ).rowcount == 1
                 offer = conn.execute(
-                    """SELECT id, status FROM offers
+                    """SELECT id, status, affiliate_link_url FROM offers
                        WHERE source = ? AND source_item_id = ?""",
                     (search["source"], offer_source_id),
                 ).fetchone()
+                if (
+                    queue_affiliate and search["source"] == "mercado_livre"
+                    and offer["status"] == OfferStatus.DRAFT
+                    and not offer["affiliate_link_url"]
+                ):
+                    now = utc_now()
+                    conn.execute(
+                        """INSERT OR IGNORE INTO affiliate_link_jobs
+                           (id,offer_id,status,created_at,updated_at)
+                           VALUES (?,? ,'PENDING',?,?)""",
+                        (str(uuid4()), offer["id"], now, now),
+                    )
                 results.append({
                     "source_item_id": item_id,
                     "offer_id": offer["id"],
