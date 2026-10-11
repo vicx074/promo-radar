@@ -118,7 +118,9 @@ def create_app(
         except SearchSnapshotNotFound:
             raise HTTPException(status_code=404, detail="Busca não encontrada") from None
         except SearchSnapshotExpired:
-            raise HTTPException(status_code=410, detail="Busca expirada; pesquise novamente") from None
+            raise HTTPException(
+                status_code=410, detail="Busca expirada; pesquise novamente"
+            ) from None
         except SearchSelectionInvalid:
             raise HTTPException(
                 status_code=422, detail="Produto não encontrado nessa busca"
