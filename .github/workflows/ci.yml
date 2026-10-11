@@ -27,6 +27,10 @@ jobs:
           docker manifest inspect evoapicloud/evolution-api:v2.3.7 >/dev/null
       - name: Construir imagem do backend
         run: docker compose --env-file .env.example build bot
+      - name: Executar testes Python dentro de Docker (Evolution simulada)
+        run: |
+          docker build --target test -t promo-radar:tests .
+          docker run --rm promo-radar:tests pytest -q
       - name: Iniciar somente o backend (Evolution não pareada)
         run: docker compose --env-file .env.example up -d --no-deps bot
       - name: Verificar inicialização, SQLite e CLI
