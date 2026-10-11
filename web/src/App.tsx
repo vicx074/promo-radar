@@ -1,4 +1,4 @@
-import {useState, type FormEvent} from "react";
+import {useEffect, useState, type FormEvent} from "react";
 import {ArrowRight, LockKeyhole, Radar, ShieldCheck, Sparkles} from "lucide-react";
 import {Sidebar} from "./components/layout/Sidebar";
 import {Feedback} from "./components/ui/Feedback";
@@ -7,8 +7,8 @@ import {OffersPage} from "./pages/OffersPage";
 import {SettingsPage} from "./pages/SettingsPage";
 import {HistoryPage} from "./pages/HistoryPage";
 import {UnavailablePage} from "./pages/UnavailablePage";
-import {apiRequest, errorMessage} from "./lib/api";
-import type {AffiliateConnection, Section} from "./types";
+import {errorMessage, loginOwner, logoutOwner, restoreSession} from "./lib/api";
+import type {Section} from "./types";
 
 const titles: Record<Section, {kicker: string; title: string; description: string}> = {
   discovery: {kicker: "CATÁLOGO", title: "Descubra novas oportunidades", description: "Encontre produtos por nicho e selecione os que vale a pena compartilhar."},
@@ -20,22 +20,32 @@ const titles: Record<Section, {kicker: string; title: string; description: strin
 };
 
 export function App() {
-  const [adminKey, setAdminKey] = useState("");
-  const [keyDraft, setKeyDraft] = useState("");
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [password, setPassword] = useState("");
   const [section, setSection] = useState<Section>("discovery");
   const [focusOfferId, setFocusOfferId] = useState<string | null>(null);
   const [loginError, setLoginError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    let mounted = true;
+    void restoreSession()
+      .then(() => {if (mounted) setAuthenticated(true);})
+      .catch(() => {if (mounted) setAuthenticated(false);});
+    const handleExpired = () => setAuthenticated(false);
+    window.addEventListener("promo:session-expired", handleExpired);
+    return () => {mounted = false; window.removeEventListener("promo:session-expired", handleExpired);};
+  }, []);
+
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!keyDraft.trim()) return;
+    if (!password) return;
     setSubmitting(true);
     setLoginError("");
     try {
-      await apiRequest<AffiliateConnection>(keyDraft, "/api/v1/affiliates/mercado-livre/status");
-      setAdminKey(keyDraft);
-      setKeyDraft("");
+      await loginOwner(password);
+      setPassword("");
+      setAuthenticated(true);
     } catch (error) {
       setLoginError(errorMessage(error));
     } finally {
@@ -43,14 +53,26 @@ export function App() {
     }
   }
 
-  function logout() {
-    setAdminKey("");
-    setKeyDraft("");
-    setFocusOfferId(null);
-    setSection("discovery");
+  async function logout() {
+    try {
+      await logoutOwner();
+    } catch {
+      // Não esconder o painel de login mesmo se a sessão já expirou.
+    } finally {
+      setAuthenticated(false);
+      setPassword("");
+      setFocusOfferId(null);
+      setSection("discovery");
+    }
   }
 
-  if (!adminKey) return (
+  if (authenticated === null) return (
+    <main className="login-page"><div className="loading-card">
+      <div className="spinner"/> Verificando acesso ao seu painel...
+    </div></main>
+  );
+
+  if (!authenticated) return (
     <main className="login-page">
       <div className="login-decor login-decor-one" /><div className="login-decor login-decor-two" />
       <div className="login-container">
@@ -64,15 +86,15 @@ export function App() {
         <form className="login-form card" onSubmit={handleLogin}>
           <div className="login-icon"><LockKeyhole size={24}/></div>
           <h2>Acesse seu painel</h2>
-          <p>Informe a chave administrativa configurada no backend para continuar.</p>
-          <label htmlFor="admin-key">Chave administrativa</label>
-          <input id="admin-key" type="password" value={keyDraft} onChange={e=>setKeyDraft(e.target.value)}
-            placeholder="Sua ADMIN_API_KEY" autoComplete="off" spellCheck={false} required />
-          <button type="submit" className="button primary full" disabled={submitting || !keyDraft.trim()}>
+          <p>Informe sua senha privada para entrar no Promo Radar.</p>
+          <label htmlFor="admin-key">Senha do painel</label>
+          <input id="admin-key" type="password" value={password} onChange={e=>setPassword(e.target.value)}
+            placeholder="Digite sua senha" autoComplete="current-password" spellCheck={false} required />
+          <button type="submit" className="button primary full" disabled={submitting || !password}>
             {submitting ? "Verificando..." : "Entrar no painel"} <ArrowRight size={17}/>
           </button>
           {loginError && <Feedback tone="error">{loginError}</Feedback>}
-          <div className="login-privacy"><ShieldCheck size={16}/> A chave permanece somente na memória desta aba; não é salva no navegador.</div>
+          <div className="login-privacy"><ShieldCheck size={16}/> Sua senha não é armazenada no navegador. Sua sessão pode ser encerrada a qualquer momento.</div>
           <div className="login-notice">Este acesso é ao Promo Radar, não à sua conta Mercado Livre.</div>
         </form>
       </div>
@@ -81,21 +103,21 @@ export function App() {
 
   const current = titles[section];
   return <div className="app-shell">
-    <Sidebar section={section} onNavigate={setSection} onLogout={logout}/>
+    <Sidebar section={section} onNavigate={setSection} onLogout={()=>{void logout();}}/>
     <div className="main-region">
       <header className="topbar">
-        <div className="topbar-path">Workspace <span>/</span> <strong>{current.title}</strong></div>
-        <div className="topbar-profile"><span className="profile-dot" /> Acesso administrativo <span className="avatar">PR</span></div>
+        <div className="topbar-path">Meu painel <span>/</span> <strong>{current.title}</strong></div>
+        <div className="topbar-profile"><span className="profile-dot" /> Acesso privado <span className="avatar">PR</span></div>
       </header>
       <main className="workspace">
         <div className="page-heading">
           <div><div className="eyebrow">{current.kicker}</div><h1>{current.title}</h1><p>{current.description}</p></div>
           <span className="page-heading-icon"><Sparkles size={23} /></span>
         </div>
-        {section === "discovery" && <DiscoveryPage adminKey={adminKey} onOpenOffer={id=>{setFocusOfferId(id);setSection("offers");}} />}
-        {section === "offers" && <OffersPage adminKey={adminKey} focusOfferId={focusOfferId} onClearFocus={()=>setFocusOfferId(null)} />}
-        {section === "settings" && <SettingsPage adminKey={adminKey} />}
-        {section === "history" && <HistoryPage adminKey={adminKey} />}
+        {section === "discovery" && <DiscoveryPage onOpenOffer={id=>{setFocusOfferId(id);setSection("offers");}} />}
+        {section === "offers" && <OffersPage focusOfferId={focusOfferId} onClearFocus={()=>setFocusOfferId(null)} />}
+        {section === "settings" && <SettingsPage />}
+        {section === "history" && <HistoryPage />}
         {section === "groups" && <UnavailablePage kind="groups" />}
         {section === "campaigns" && <UnavailablePage kind="campaigns" />}
       </main>
