@@ -38,3 +38,7 @@ Não é SaaS. `app/auth.py` mantém uma única sessão ativa, revogável no SQLi
 ## Busca live de produtos por nicho — provedor Apify (ADR 0012)
 
 Em produção `DISCOVERY_PROVIDER=apify` lê anúncios reais a cada solicitação do operador por meio do scraper terceirizado `gio21/mercado-livre-scraper` na Apify, exigindo `APIFY_TOKEN` privado. O adapter `app/live_catalog.py` valida títulos, preço BRL em centavos, link e imagem; não identifica desconto comprovado nem garante estoque ou atribuição de comissão. Sem credenciais responde 503; o backend **não** usa o CSV silenciosamente. O modo CSV fica disponível explicitamente para testes/offline via `DISCOVERY_PROVIDER=csv`. A seleção mantém os snapshots SQLite, DRAFT e bloqueios de publicação existentes. Este Actor é terceirizado e o serviço é pago conforme uso; a API oficial ML não é usada para pesquisa geral.
+
+## Layout mobile-first Tailwind CSS 4
+
+Vite usa plugin `@tailwindcss/vite`; o frontend compõe classes de layout Tailwind em JSX, mantendo classes cosméticas em `styles.css` na camada `components`. Em dispositivos de até 767px, a navegação ocorre por tabs fixas inferiores, com safe-area iOS; a partir de 768px, sidebar fixa. O grid de ofertas simplifica para coluna única no tablet/celular e painel duplo no desktop largo. Tarefas de negócio, sessão HttpOnly e API FastAPI são inalteradas. E2E Chromium via Playwright simula API e confere ausência de overflow horizontal. Ver [ADR 0013](docs/decisions/0013-tailwind-mobile-first.md).
