@@ -57,3 +57,9 @@ export interface Publication {
   provider_message_id: string | null;
   error_summary: string | null;
 }
+
+export interface OwnerSession {
+  authenticated: boolean;
+  csrf_token: string;
+  expires_at: number;
+}
