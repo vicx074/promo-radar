@@ -155,3 +155,7 @@ As instruções históricas deste README relativas a digitar `ADMIN_API_KEY` ref
 ## Busca real no Mercado Livre (provedor terceirizado)
 
 O backend agora suporta `DISCOVERY_PROVIDER=apify`, usando um Actor de scraping terceirizado na Apify quando `APIFY_TOKEN` estiver configurado **apenas na VPS**. O modo CSV continua disponível explicitamente (`DISCOVERY_PROVIDER=csv`). Sem token, a busca retorna HTTP 503 e não inventa produtos. A interface identifica os resultados como coleta terceirizada; preços, disponibilidade e descontos devem ser verificados no anúncio. A busca continua manual, snapshots duram 45 minutos e a seleção só cria DRAFT — geração de link afiliado e envio automático continuam pendentes. Veja o [guia de configuração e validação](docs/live-mercado-livre-search.md) e [ADR 0012](docs/decisions/0012-live-ml-search.md).
+
+## Interface responsiva Tailwind CSS 4 (PR #10)
+
+O frontend permanece React + Vite, com **Tailwind CSS 4** para layout responsivo e Motion/Fancy Components para a microinteração do logo. Celular: quatro abas de navegação inferior, ações acessíveis por toque, busca e cards responsivos, seleção de produtos acima da barra inferior e revisão de oferta em coluna única; computador: sidebar e painel duplo. Veja [web/README.md](web/README.md) e [ADR 0013](docs/decisions/0013-tailwind-mobile-first.md). Testes E2E simulados em Chromium cobrem 320–1440px e não implicam integração real da conta Mercado Livre.
