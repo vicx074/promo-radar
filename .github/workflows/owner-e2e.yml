@@ -45,6 +45,17 @@ jobs:
           done
           grep -q 'Promo Radar' /tmp/pr-index.html
 
+          # Nginx pode iniciar antes de o Uvicorn abrir 8000.
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5173/health \
+              | python -c 'import json,sys; assert json.load(sys.stdin)["status"]=="ok"' 2>/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:5173/health \
+            | python -c 'import json,sys; assert json.load(sys.stdin)["schema_version"]==6'
+
           test "$(curl -s -o /dev/null -w '%{http_code}' \
             http://127.0.0.1:5173/api/v1/offers)" = 401
           test "$(curl -s -o /dev/null -w '%{http_code}' \
