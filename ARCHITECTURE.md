@@ -22,3 +22,7 @@ Estado: oferta DRAFT -> APPROVED; publicação ausente -> SENDING -> SENT | UNKN
 ## Busca pontual e revisão antes de qualquer campanha
 
 `app/catalog.py` define provider substituível `CatalogProvider` com implementação inicial `CsvCatalogProvider`. `POST /api/v1/discovery/search` só consulta quando solicitado, salva resultados completos no SQLite schema v4 e expira em 45 minutos. `POST /api/v1/discovery/select` aceita apenas IDs presentes nesse snapshot e cria ofertas DRAFT idempotentes, preservando preço/link/imagem do momento da busca. Não há coleta periódica, scheduler nem disparos nesta fase. Veja [ADR 0007](docs/decisions/0007-on-demand-search.md).
+
+## Separação de links e estado da integração (PR #6)
+
+O schema v5 preserva o `affiliate_url` físico legado para compatibilidade SQLite e acrescenta `product_url` + `affiliate_link_url`, que é a fonte da `affiliate_url` exposta pela API para ML. A migração nunca assume que a URL legada de produto gera comissão. O cadastro de link oficial exige confirmação do operador em uma oferta DRAFT; sem ele não há aprovação nem publicação. `affiliate_integrations` mantém Mercado Livre `DISCONNECTED` enquanto não houver autorização formal; não persiste cookies e não fornece login simulado. Veja [ADR 0009](docs/decisions/0009-affiliate-links-foundation.md).
