@@ -12,6 +12,7 @@ from app.config import Settings
 from app.discovery import _valid_product_url
 from app.domain import PublicationStatus, format_offer
 from app.evolution import EvolutionPublisher
+from app.live_catalog import ApifyCatalogProvider
 from app.media import MediaError, cache_image, download_image, load_image
 from app.storage import (
     AffiliateLinkRequired,
@@ -117,9 +118,14 @@ def create_app(
     )
     media_dir = settings.sqlite_path.parent / "media"
     if catalog_provider is None:
-        catalog_provider = CsvCatalogProvider(
-            settings.sqlite_path.parent / "import" / "catalogo.csv"
-        )
+        if settings.discovery_provider == "apify":
+            catalog_provider = ApifyCatalogProvider(settings.apify_token)
+        elif settings.discovery_provider == "csv":
+            catalog_provider = CsvCatalogProvider(
+                settings.sqlite_path.parent / "import" / "catalogo.csv"
+            )
+        else:
+            raise RuntimeError("DISCOVERY_PROVIDER deve ser apify ou csv")
     if image_loader is None:
         def image_loader(url):
             return download_image(url, settings.media_allowed_hosts)
@@ -241,7 +247,10 @@ def create_app(
             raise HTTPException(status_code=503, detail=str(exc)) from None
         except InvalidCatalog as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from None
-        return store.save_search(payload.query, catalog_provider.source, found)
+        saved = store.save_search(payload.query, catalog_provider.source, found)
+        saved["provider"] = getattr(catalog_provider, "name", "csv")
+        saved["live"] = saved["provider"] == "apify_live"
+        return saved
 
     @app.post("/api/v1/discovery/select", dependencies=[Depends(admin)])
     def select_catalog(payload: CatalogSelection):
