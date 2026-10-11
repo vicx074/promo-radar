@@ -16,7 +16,11 @@ services:
       target: runtime
     restart: unless-stopped
     environment:
-      ADMIN_API_KEY: ${ADMIN_API_KEY:?defina em .env}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-}
+      OWNER_PASSWORD_HASH: ${OWNER_PASSWORD_HASH:-}
+      SINGLE_OWNER_MODE: ${SINGLE_OWNER_MODE:-false}
+      ALLOW_ADMIN_API_KEY: ${ALLOW_ADMIN_API_KEY:-true}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:?defina em .env}
       # Rede Docker: comunicação entre containers sempre usa a porta 8080.
       EVOLUTION_BASE_URL: http://evolution:8080
