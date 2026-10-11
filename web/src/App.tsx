@@ -57,13 +57,13 @@ export function App() {
     try {
       await logoutOwner();
     } catch {
-      // Não esconder o painel de login mesmo se a sessão já expirou.
-    } finally {
-      setAuthenticated(false);
-      setPassword("");
-      setFocusOfferId(null);
-      setSection("discovery");
+      window.alert("Não foi possível invalidar a sessão no servidor. Tente sair novamente.");
+      return;
     }
+    setAuthenticated(false);
+    setPassword("");
+    setFocusOfferId(null);
+    setSection("discovery");
   }
 
   if (authenticated === null) return (
