@@ -35,7 +35,8 @@ def create_app(settings: Settings, publisher=None, image_loader=None) -> FastAPI
     )
     media_dir = settings.sqlite_path.parent / "media"
     if image_loader is None:
-        image_loader = lambda url: download_image(url, settings.media_allowed_hosts)
+        def image_loader(url):
+            return download_image(url, settings.media_allowed_hosts)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -144,7 +145,9 @@ def create_app(settings: Settings, publisher=None, image_loader=None) -> FastAPI
             raise HTTPException(status_code=409, detail="Oferta deve ser aprovada")
         media = store.media_for_offer(offer_id)
         if offer["image_url"] and not media:
-            raise HTTPException(status_code=409, detail="Imagem precisa ser preparada antes de publicar")
+            raise HTTPException(
+                status_code=409, detail="Imagem precisa ser preparada antes de publicar"
+            )
         if media:
             try:
                 image_bytes = load_image(media_dir, media["sha256"])
