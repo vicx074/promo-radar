@@ -3,7 +3,7 @@ import {CalendarClock, Radio, ShieldAlert} from "lucide-react";
 export function UnavailablePage({kind}: {kind: "groups" | "campaigns"}) {
   const group = kind === "groups";
   const Icon = group ? Radio : CalendarClock;
-  return <section className="card unavailable-card">
+  return <section className="card unavailable-card mx-auto w-full max-w-[750px] px-4 py-10 sm:px-10 sm:py-16">
     <div className="unavailable-symbol"><Icon size={29}/></div>
     <span className="eyebrow">EM DESENVOLVIMENTO</span>
     <h2>{group ? "Gerenciamento de grupos vem em breve" : "Agendamento de campanhas vem em breve"}</h2>
