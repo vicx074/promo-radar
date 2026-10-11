@@ -36,7 +36,8 @@ def test_creates_draft_only_after_two_baselines_and_real_drop(tmp_path):
     assert offer["source"] == "mercado_livre"
     assert offer["price_cents"] == 16000
     assert offer["reference_price_cents"] == 20000
-    assert offer["affiliate_url"] == URL
+    assert offer["affiliate_url"] is None
+    assert offer["product_url"] == URL
     assert offer["approved_at"] is None
     with store.connect() as conn:
         assert conn.execute("SELECT COUNT(*) FROM price_observations").fetchone()[0] == 3
@@ -136,5 +137,5 @@ def test_upgrades_existing_v1_database_without_deleting_offers(tmp_path):
     store.initialize()
     assert store.get_offer("old-offer")["status"] == "APPROVED"
     with store.connect() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 4
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 5
         assert conn.execute("SELECT COUNT(*) FROM price_observations").fetchone()[0] == 0
