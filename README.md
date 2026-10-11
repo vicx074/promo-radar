@@ -2,13 +2,15 @@
 
 Backend para curadoria de promoções de tecnologia e publicação manualmente aprovada em **grupo próprio do WhatsApp**, usando Python, FastAPI, SQLite e Evolution API v2.
 
-**Estado atual: fundação / MVP 0.1.** API administrativa, banco SQLite, backup consistente, adapter Evolution, aprovação de ofertas, preview, registro durável de envio e testes. **Ainda não existem** coleta automática de marketplaces, geração de links de afiliados, painel, scheduler ou integração real validada com WhatsApp.
+**Estado atual: fundação / MVP 0.1.** API administrativa, banco SQLite, backup consistente, adapter Evolution, aprovação de ofertas, preview, registro durável de envio e testes. **A descoberta automática de marketplaces e a geração de links de afiliados ainda não existem**; foi adicionada uma importação manual de catálogo autorizado com histórico de preços e geração de candidatos DRAFT. Não há painel nem scheduler. A integração real de WhatsApp deve ser validada por cada operador.
 
 ## Documentação e regras de IA
 
 - [Arquitetura](ARCHITECTURE.md)
 - [ADRs](docs/decisions/)
 - [Imagem Docker da Evolution](docs/decisions/0004-evolution-image.md)
+- [Descoberta Mercado Livre via catálogo autorizado](docs/mercado-livre-discovery.md)
+- [ADR do coletor sem scraping não autorizado](docs/decisions/0005-mercado-livre-feed.md)
 - [Contrato de ofertas](docs/contracts/offers.md)
 - [Contrato de publicação](docs/contracts/publications.md)
 - [Operação/backup](docs/operations.md)
@@ -58,6 +60,19 @@ Se houver erro de inicialização, rode `docker compose logs --tail=100 evolutio
 5. Verificar publicação por GET /api/v1/publications/{id}. Não reenviar UNKNOWN/SENDING automaticamente.
 
 A Evolution aceita texto pelo endpoint POST /message/sendText/{instance} com header `apikey` e corpo `{number,text}`. O contrato real e o QR devem ser verificados na versão implantada; HTTP 2xx **não significa entregue**.
+
+## Descoberta de preços sem Chromium
+
+O comando `python -m app.discovery_cli` ingere um arquivo CSV de catálogo obtido de fonte **autorizada** (ou preenchido manualmente), registra um preço por produto por hora e cria DRAFT apenas após duas observações de referência e queda de pelo menos 15%. Não aprova ou publica. Não executa scraping não autorizado das páginas do Mercado Livre: seus termos e robots impõem restrições. Consulte [guia de importação](docs/mercado-livre-discovery.md).
+
+```powershell
+New-Item -ItemType Directory -Force data\import | Out-Null
+notepad data\import\catalogo.csv
+docker compose up -d --build bot
+docker compose exec -T bot python -m app.discovery_cli /app/data/import/catalogo.csv
+```
+
+**Faça backup antes da atualização:** `app/storage.py` migra automaticamente bancos existentes de schema 1 para 2 sem descartar ofertas/publicações.
 
 ## Desenvolvimento sem Docker
 

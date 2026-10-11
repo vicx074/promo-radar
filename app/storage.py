@@ -47,7 +47,14 @@ class SQLiteStore:
                 script = Path(__file__).parent.joinpath("migrations/001_init.sql").read_text()
                 conn.executescript(script)
                 conn.execute("PRAGMA user_version = 1")
-            elif version != 1:
+                version = 1
+            if version == 1:
+                migration = Path(__file__).parent.joinpath(
+                    "migrations/002_price_observations.sql"
+                ).read_text()
+                conn.executescript(migration)
+                conn.execute("PRAGMA user_version = 2")
+            elif version != 2:
                 raise RuntimeError(f"Versão do SQLite incompatível: {version}")
 
     def health(self) -> bool:

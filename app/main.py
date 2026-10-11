@@ -49,7 +49,7 @@ def create_app(settings: Settings, publisher=None) -> FastAPI:
     def health():
         if not store.health():
             raise HTTPException(status_code=503, detail="SQLite indisponível")
-        return {"status": "ok", "schema_version": 1}
+        return {"status": "ok", "schema_version": 2}
 
     @app.post("/api/v1/offers", status_code=201, dependencies=[Depends(admin)])
     def create_offer(payload: OfferCreate):

@@ -2,7 +2,7 @@
 
 Monólito modular Python/FastAPI. Admin HTTP -> SQLite (ofertas e publicações); somente ação de publicação explícita -> Evolution API v2 (Baileys) -> grupo autorizado.
 
-Domínio em app/domain.py; adaptadores app/storage.py (SQLite WAL) e app/evolution.py (HTTP); borda HTTP app/main.py. Banco em /app/data/offers.db persistido por bind mount ./data do host; serviços da Evolution usam PostgreSQL e Redis com volumes separados. Sem scraping, scheduler, webhook ou UI nesta fase.
+Domínio em app/domain.py; adaptadores app/storage.py (SQLite WAL) e app/evolution.py (HTTP); borda HTTP app/main.py. Banco em /app/data/offers.db persistido por bind mount ./data do host; serviços da Evolution usam PostgreSQL e Redis com volumes separados. Sem scraping não autorizado, scheduler, webhook ou UI nesta fase. A descoberta por CSV local autorizado registra histórico de preços no SQLite e cria candidatos DRAFT quando encontra uma queda contra o menor preço já observado, sem chamar Evolution.
 
 Estado: oferta DRAFT -> APPROVED; publicação ausente -> SENDING -> SENT | UNKNOWN. SENDING é registrado antes do HTTP. SENT é aceitação da Evolution, não comprovação de entrega. UNKNOWN e SENDING após crash exigem reconciliação manual e não permitem retry cego.
 
@@ -10,3 +10,7 @@ Estado: oferta DRAFT -> APPROVED; publicação ausente -> SENDING -> SENT | UNKN
 ## Ferramenta de diagnóstico
 
 `app/evolution_admin.py` implementa somente criação de instância, consulta de conexão e listagem de grupos da Evolution API. Não oferece envio fora do caso de uso de publicação, que permanece protegido pelo controle de aprovação. Pareamento de QR via Manager é manual. Confira o runbook `docs/evolution-connection.md`.
+
+## Descoberta Mercado Livre (fase inicial)
+
+`app/discovery.py` valida feed CSV de origem autorizada, guarda preços por hora em `price_observations` (schema SQLite v2), e cria somente DRAFT se houver duas observações anteriores e queda mínima frente ao menor preço histórico. `app/discovery_cli.py` executa a importação manual. Nunca publica, aprova ou chama o Mercado Livre. Veja [ADR 0005](docs/decisions/0005-mercado-livre-feed.md) e [guia](docs/mercado-livre-discovery.md).
