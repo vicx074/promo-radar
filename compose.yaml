@@ -29,6 +29,8 @@ services:
       SEND_ENABLED: ${SEND_ENABLED:-false}
       SQLITE_PATH: /app/data/offers.db
       MEDIA_ALLOWED_HOSTS: ${MEDIA_ALLOWED_HOSTS:-http2.mlstatic.com}
+      DISCOVERY_PROVIDER: ${DISCOVERY_PROVIDER:-apify}
+      APIFY_TOKEN: ${APIFY_TOKEN:-}
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
