@@ -1,14 +1,23 @@
 import hmac
 from contextlib import asynccontextmanager
+from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
+from app.catalog import CatalogUnavailable, CsvCatalogProvider, InvalidCatalog
 from app.config import Settings
 from app.domain import PublicationStatus, format_offer
 from app.evolution import EvolutionPublisher
 from app.media import MediaError, cache_image, download_image, load_image
-from app.storage import AlreadyPublishedOrInProgress, DuplicateOffer, SQLiteStore
+from app.storage import (
+    AlreadyPublishedOrInProgress,
+    DuplicateOffer,
+    SearchSelectionInvalid,
+    SearchSnapshotExpired,
+    SearchSnapshotNotFound,
+    SQLiteStore,
+)
 
 
 class OfferCreate(BaseModel):
@@ -28,12 +37,45 @@ class OfferCreate(BaseModel):
         return value
 
 
-def create_app(settings: Settings, publisher=None, image_loader=None) -> FastAPI:
+class CatalogSearch(BaseModel):
+    query: str = Field(min_length=2, max_length=100)
+    limit: int = Field(default=20, ge=1, le=50)
+
+    @field_validator("query")
+    @classmethod
+    def nonempty_query(cls, value: str) -> str:
+        normalized = " ".join(value.split())
+        if len(normalized) < 2:
+            raise ValueError("Digite ao menos 2 caracteres no nicho")
+        return normalized
+
+
+class CatalogSelection(BaseModel):
+    search_id: UUID
+    source_item_ids: list[str] = Field(min_length=1, max_length=20)
+
+    @field_validator("source_item_ids")
+    @classmethod
+    def unique_selection(cls, value: list[str]) -> list[str]:
+        if len(set(value)) != len(value):
+            raise ValueError("Não repita o mesmo produto na seleção")
+        if any(not item_id or len(item_id) > 64 for item_id in value):
+            raise ValueError("IDs de produto inválidos")
+        return value
+
+
+def create_app(
+    settings: Settings, publisher=None, image_loader=None, catalog_provider=None
+) -> FastAPI:
     store = SQLiteStore(settings.sqlite_path)
     publisher = publisher or EvolutionPublisher(
         settings.evolution_base_url, settings.evolution_api_key, settings.evolution_instance
     )
     media_dir = settings.sqlite_path.parent / "media"
+    if catalog_provider is None:
+        catalog_provider = CsvCatalogProvider(
+            settings.sqlite_path.parent / "import" / "catalogo.csv"
+        )
     if image_loader is None:
         def image_loader(url):
             return download_image(url, settings.media_allowed_hosts)
@@ -55,7 +97,33 @@ def create_app(settings: Settings, publisher=None, image_loader=None) -> FastAPI
     def health():
         if not store.health():
             raise HTTPException(status_code=503, detail="SQLite indisponível")
-        return {"status": "ok", "schema_version": 3}
+        return {"status": "ok", "schema_version": 4}
+
+    @app.post("/api/v1/discovery/search", dependencies=[Depends(admin)])
+    def search_catalog(payload: CatalogSearch):
+        try:
+            found = catalog_provider.search(payload.query, payload.limit)
+        except CatalogUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from None
+        except InvalidCatalog as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+        return store.save_search(payload.query, catalog_provider.source, found)
+
+    @app.post("/api/v1/discovery/select", dependencies=[Depends(admin)])
+    def select_catalog(payload: CatalogSelection):
+        try:
+            offers = store.select_search_items(
+                str(payload.search_id), payload.source_item_ids
+            )
+        except SearchSnapshotNotFound:
+            raise HTTPException(status_code=404, detail="Busca não encontrada") from None
+        except SearchSnapshotExpired:
+            raise HTTPException(status_code=410, detail="Busca expirada; pesquise novamente") from None
+        except SearchSelectionInvalid:
+            raise HTTPException(
+                status_code=422, detail="Produto não encontrado nessa busca"
+            ) from None
+        return {"selected": offers}
 
     @app.post("/api/v1/offers", status_code=201, dependencies=[Depends(admin)])
     def create_offer(payload: OfferCreate):
