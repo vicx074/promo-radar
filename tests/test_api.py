@@ -1,9 +1,8 @@
 import io
 import sqlite3
 
-from PIL import Image
-
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from app.config import Settings
 from app.main import create_app
