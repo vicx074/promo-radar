@@ -85,7 +85,7 @@ export function OfferDetails({offerId,onUpdated}:{
     });
   }
 
-  if(loading)return <aside className="card detail-card"><div className="loading-card compact"><div className="spinner"/>Carregando detalhes...</div></aside>;
+  if(loading)return <aside className="card detail-card min-w-0 p-4 sm:p-6 xl:static"><div className="loading-card compact"><div className="spinner"/>Carregando detalhes...</div></aside>;
   if(!offer)return <aside className="card detail-card"><Feedback tone="error">{error||"Oferta indisponível"}</Feedback></aside>;
   const isMl=offer.source==="mercado_livre";
   const canLink=isMl&&offer.status==="DRAFT";
@@ -98,11 +98,11 @@ export function OfferDetails({offerId,onUpdated}:{
     <div className="detail-head"><div><div className="eyebrow">DETALHES DA OFERTA</div><h2>Revisão & publicação</h2></div><ClipboardList size={20}/></div>
     {error&&<Feedback tone="error" onClose={()=>setError("")}>{error}</Feedback>}
     {success&&<Feedback tone="success" onClose={()=>setSuccess("")}>{success}</Feedback>}
-    <div className="detail-product"><ProductPhoto url={offer.image_url} title={offer.title}/><span><strong>{offer.title}</strong><span>{formatBrl(offer.price_cents)}</span></span></div>
-    <div className="detail-links"><div><span>Endereço do produto</span>{offer.product_url?
+    <div className="detail-product flex min-w-0 flex-wrap items-center gap-3 sm:flex-nowrap"><ProductPhoto url={offer.image_url} title={offer.title}/><span><strong>{offer.title}</strong><span>{formatBrl(offer.price_cents)}</span></span></div>
+    <div className="detail-links min-w-0"><div className="flex flex-wrap items-center gap-2"><span>Endereço do produto</span>{offer.product_url?
       <a href={offer.product_url} target="_blank" rel="noreferrer noopener">Abrir produto <ExternalLink size={13}/></a>:<small>Não informado</small>}</div>
-      <div><span>Link de afiliado</span>{offer.affiliate_url?
-        <span className="registered-link"><Link2 size={15}/><span title={offer.affiliate_url}>{offer.affiliate_url}</span></span>:
+      <div className="flex flex-wrap items-center gap-2"><span>Link de afiliado</span>{offer.affiliate_url?
+        <span className="registered-link min-w-0"><Link2 size={15}/><span title={offer.affiliate_url}>{offer.affiliate_url}</span></span>:
         <span className="missing-link">Não cadastrado</span>}</div>
     </div>
     {canLink&&<form className="affiliate-form" onSubmit={saveLink}>
@@ -110,10 +110,10 @@ export function OfferDetails({offerId,onUpdated}:{
       <p>Gere o link na Central de Afiliados e cole aqui o endereço correspondente a este produto.</p>
       <label htmlFor={"link-"+offer.id}>Link de divulgação</label>
       <input id={"link-"+offer.id} type="url" required autoComplete="off" spellCheck={false}
-        placeholder="https://meli.la/..." value={link} onChange={e=>setLink(e.target.value)} />
-      <label className="check-label"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>
+        placeholder="https://meli.la/..." className="min-h-12 text-base sm:text-sm" value={link} onChange={e=>setLink(e.target.value)} />
+      <label className="check-label min-h-11 items-center"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>
         <span>Confirmo que gerei este link para o produto acima.</span></label>
-      <button className="button secondary full" disabled={busy||!link.trim()||!confirmed} type="submit"><Link2 size={16}/>{offer.affiliate_url?"Atualizar link":"Salvar link"}</button>
+      <button className="button secondary full min-h-11" disabled={busy||!link.trim()||!confirmed} type="submit"><Link2 size={16}/>{offer.affiliate_url?"Atualizar link":"Salvar link"}</button>
       <small>A plataforma valida somente o formato, não a titularidade ou o rastreamento.</small>
     </form>}
     {isMl&&!offer.affiliate_url&&offer.status==="APPROVED"&&<Feedback tone="error">Esta oferta antiga foi aprovada antes da separação dos links. Por segurança, sua publicação permanece bloqueada. Crie um novo rascunho e vincule o link correto.</Feedback>}
@@ -127,9 +127,9 @@ export function OfferDetails({offerId,onUpdated}:{
         <span><strong>Aprovação humana</strong><small>{offer.status==="APPROVED"?"Aprovada":"Aguardando sua revisão"}</small></span>
       </div>
     </div>
-    <div className="preview-section"><div className="preview-header"><Sparkles size={16}/><strong>Prévia da mensagem</strong></div>
-      <pre>{preview?.message??"Prévia indisponível"}</pre></div>
-    {offer.status==="DRAFT"&&<button className="button primary full" type="button" disabled={busy||!canApprove} onClick={approve}><BadgeCheck size={17}/>{busy?"Processando...":"Aprovar oferta"}</button>}
+    <div className="preview-section min-w-0"><div className="preview-header"><Sparkles size={16}/><strong>Prévia da mensagem</strong></div>
+      <pre className="max-w-full whitespace-pre-wrap break-words">{preview?.message??"Prévia indisponível"}</pre></div>
+    {offer.status==="DRAFT"&&<button className="button primary full min-h-11" type="button" disabled={busy||!canApprove} onClick={approve}><BadgeCheck size={17}/>{busy?"Processando...":"Aprovar oferta"}</button>}
     {offer.status==="APPROVED"&&<div className="publish-box">
       <div className="publish-title"><Send size={17}/> Publicação manual</div>
       <p>Utiliza o grupo configurado no backend. O envio automático ainda não existe.</p>

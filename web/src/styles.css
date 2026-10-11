@@ -1,4 +1,14 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --color-radar-blue: #1978ef;
+  --color-radar-ink: #18334f;
+  --color-radar-muted: #70839b;
+}
+
+/* Estética legada na camada components: utilities Tailwind controlam layout e breakpoints. */
+@layer components {
 
 :root{
   font-family:"DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -258,74 +268,10 @@ input{outline:none}input:focus-visible,button:focus-visible,a:focus-visible{outl
 .login-privacy svg{flex-shrink:0}
 .login-notice{border-top:1px solid #eff3f8;padding-top:16px;margin-top:23px;color:#a8b5c2;font-size:10px;line-height:1.6}
 
-/* Responsive */
-@media(max-width:1350px){
-  .workspace{padding:32px 30px 70px}
-  .topbar{padding:0 30px}
-  .catalog-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .offers-layout{grid-template-columns:minmax(0,1fr) minmax(310px,.85fr)}
+
 }
-@media(max-width:1050px){
-  .sidebar{width:205px}
-  .sidebar-brand{padding:0 17px}
-  .sidebar-scroll{padding:6px 8px}
-  .nav-button{padding:13px 10px;gap:9px;font-size:11px}
-  .nav-soon{display:none}
-  .offers-layout{grid-template-columns:1fr}
-  .detail-card{position:static}
-  .catalog-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .hero-illustration{width:175px}
-  .hero-glyph{height:120px;width:120px}
-}
-@media(max-width:760px){
-  .app-shell{display:block}
-  .sidebar{position:static;width:100%;height:auto;min-height:0;border-right:0;border-bottom:1px solid #e6ecf3}
-  .sidebar-brand{height:64px;padding:0 19px}
-  .sidebar-scroll{padding:0 10px 9px;overflow-x:auto}
-  .nav-heading,.sidebar-helper,.sidebar-footer{display:none}
-  .nav-list{flex-direction:row;gap:5px;width:max-content}
-  .nav-button{width:auto;white-space:nowrap;padding:10px 12px;font-size:11px}
-  .topbar{height:53px;padding:0 19px}
-  .topbar-profile{font-size:0}
-  .avatar{font-size:10px;height:27px;width:27px}
-  .workspace{padding:25px 18px 70px}
-  .page-heading h1{font-size:22px}
-  .page-heading-icon{display:none}
-  .discovery-hero{min-height:0}
-  .hero-content{padding:26px 22px}
-  .hero-illustration{display:none}
-  .discovery-hero h2{font-size:21px}
-  .settings-grid{grid-template-columns:1fr}
-  .login-container{grid-template-columns:1fr;max-width:500px;gap:35px}
-  .login-page{padding:26px 17px}
-  .login-brand{margin-bottom:22px}
-  .login-intro h1{font-size:31px;margin:11px 0}
-  .login-intro>p{font-size:12px}
-}
-@media(max-width:530px){
-  .hero-search{flex-wrap:wrap}
-  .hero-search input{flex-basis:calc(100% - 45px)}
-  .hero-search .button{width:100%}
-  .catalog-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-  .catalog-card{padding:8px}
-  .catalog-card .product-photo{height:116px}
-  .catalog-card-body{padding:12px 2px 2px}
-  .catalog-price{font-size:16px}
-  .catalog-card-body strong{font-size:11px}
-  .catalog-meta{font-size:9px}
-  .stats-row{gap:8px}
-  .stat-tile{padding:13px}
-  .stat-tile strong{font-size:21px}
-  .stat-tile .stat-label{font-size:10px}
-  .stat-tile>span:last-child{font-size:9px}
-  .offers-board,.detail-card,.setting-card{padding:17px}
-  .results-header{align-items:flex-start;flex-direction:column}
-  .selection-tray{padding:10px}
-  .selection-tray .button{padding:10px;font-size:11px}
-  .history-search{flex-wrap:wrap}
-  .history-search input{min-width:calc(100% - 45px);padding:6px}
-  .history-search .button{width:100%}
-}
+
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
+
