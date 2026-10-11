@@ -8,6 +8,7 @@ Backend para curadoria de promoções de tecnologia e publicação manualmente a
 
 - [Arquitetura](ARCHITECTURE.md)
 - [ADRs](docs/decisions/)
+- [Imagem Docker da Evolution](docs/decisions/0004-evolution-image.md)
 - [Contrato de ofertas](docs/contracts/offers.md)
 - [Contrato de publicação](docs/contracts/publications.md)
 - [Operação/backup](docs/operations.md)
@@ -31,6 +32,22 @@ curl http://127.0.0.1:8000/health
 Evolution Manager local: http://127.0.0.1:8085/manager. O mapeamento e o acesso são distintos: **host 8085 → container Evolution 8080**; o bot usa **http://evolution:8080** pela rede interna. Alterar `EVOLUTION_BASE_URL` no `.env` não altera o mapeamento de portas do Compose.
 
 Swagger local: http://127.0.0.1:8000/docs — endpoints administrativos exigem `x-admin-key`.
+
+## Imagem da Evolution API e primeiro deploy
+
+A imagem fixada no Compose é `evoapicloud/evolution-api:v2.3.7` (ADR 0004). A tag antiga `atendai/evolution-api:v2.1.1` falhou com `pull access denied` no Docker Desktop do projeto. Mantemos **host 8085 -> container 8080**; o bot acessa internamente `http://evolution:8080`.
+
+No Windows, use a pasta **`C:\Projestos pessoais\promo-radar`**: há outra cópia do projeto aninhada em `evolution-api`, que não deve ser utilizada neste deploy. Confira as credenciais **neste** `.env` sem compartilhá-las e não copie `.env.example` sobre as configurações existentes.
+
+```powershell
+cd 'C:\Projestos pessoais\promo-radar'
+git pull origin feat/backend-foundation
+docker compose pull evolution
+docker compose up -d --build
+docker compose ps
+```
+
+Se houver erro de inicialização, rode `docker compose logs --tail=100 evolution` e não utilize `down -v`: volumes nomeados da Evolution são persistentes. A disponibilidade da tag no Docker Hub não equivale a validação real de pareamento com WhatsApp.
 
 ## Fluxo do MVP
 
