@@ -3,7 +3,7 @@ import sqlite3
 
 from fastapi.testclient import TestClient
 
-from app.affiliate_bridge import AffiliateBridge, matching_product
+from app.affiliate_bridge import matching_product
 from app.config import Settings
 from app.main import create_app
 from app.storage import SQLiteStore
