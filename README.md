@@ -133,3 +133,13 @@ Consulte [guia de busca sob demanda](docs/on-demand-discovery.md) e [ADR 0007](d
 ## Links de afiliado reais (cadastro manual, schema v5)
 
 A URL comum de produto foi separada da URL de divulgação do afiliado. `GET /api/v1/offers/{id}` apresenta `product_url` e `affiliate_url`, que fica `null` para Mercado Livre até o operador cadastrar explicitamente em `POST /api/v1/offers/{id}/affiliate-link`. Ofertas Mercado Livre não podem ser aprovadas nem publicadas sem cadastro. Não adicionamos login nem geração automática: o status da integração Mercado Livre permanece `DISCONNECTED`. **A validação do formato do link não comprova comissão nem que pertence à conta.** Veja [guia](docs/affiliate-links.md) e [ADR 0009](docs/decisions/0009-affiliate-links-foundation.md).
+
+## Painel web React + Vite (PR #7)
+
+O frontend está em `./web`, com **React 19, Vite 6, TypeScript, Motion/Fancy Components e ícones Lucide**. O Docker Compose adiciona `web` (Nginx) na porta **http://127.0.0.1:5173**, com proxy `/api` para o FastAPI, sem habilitar CORS aberto. Para desenvolver sem Docker, rode `npm install` e `npm run dev` na pasta `web`, mantendo FastAPI na porta 8000. Veja [guia do frontend](web/README.md) e [ADR 0010](docs/decisions/0010-vite-dashboard.md).
+
+**Implementado no painel:** entrada por chave administrativa somente na memória, pesquisa no CSV local, seleção DRAFT, lista e revisão de ofertas, cadastro manual de link de afiliado, preparação de JPEG, prévia, aprovação, publicação manual mediante confirmação, estado da integração Mercado Livre e consulta de publicação conhecida por UUID.
+
+**Não implementado:** busca ao vivo no Mercado Livre, conexão OAuth da conta de afiliado, geração automática de links, agendador, gerenciamento visual de grupos e lista completa de histórico. Essas telas mostram explicitamente as limitações, sem simular integração.
+
+**Atenção:** antes de abrir o frontend, use uma versão do backend com migração SQLite v5 (PR #6). O painel não deve ser publicado diretamente na Internet com chave administrativa compartilhada. `SEND_ENABLED=false` continua o padrão. A existência da UI não equivale à validação real de comissão ou entrega ao WhatsApp.
