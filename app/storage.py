@@ -54,7 +54,14 @@ class SQLiteStore:
                 ).read_text()
                 conn.executescript(migration)
                 conn.execute("PRAGMA user_version = 2")
-            elif version != 2:
+                version = 2
+            if version == 2:
+                migration = Path(__file__).parent.joinpath(
+                    "migrations/003_offer_media.sql"
+                ).read_text()
+                conn.executescript(migration)
+                conn.execute("PRAGMA user_version = 3")
+            elif version != 3:
                 raise RuntimeError(f"Versão do SQLite incompatível: {version}")
 
     def health(self) -> bool:
@@ -68,11 +75,12 @@ class SQLiteStore:
                 conn.execute(
                     """INSERT INTO offers
                     (id, source, source_item_id, title, price_cents, reference_price_cents,
-                     affiliate_url, status, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                     affiliate_url, image_url, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (offer_id, data["source"], data["source_item_id"], data["title"],
                      data["price_cents"], data.get("reference_price_cents"),
-                     data["affiliate_url"], OfferStatus.DRAFT, utc_now()),
+                     data["affiliate_url"], data.get("image_url"),
+                     OfferStatus.DRAFT, utc_now()),
                 )
         except sqlite3.IntegrityError as exc:
             raise DuplicateOffer from exc
@@ -132,5 +140,35 @@ class SQLiteStore:
         with self.connect() as conn:
             row = conn.execute(
                 "SELECT * FROM publications WHERE id = ?", (publication_id,)
+            ).fetchone()
+            return dict(row) if row else None
+
+    def attach_media(self, offer_id: str, image: dict) -> dict | None:
+        """Guarda o JPEG otimizado; não altera oferta já aprovada."""
+        with self.connect() as conn:
+            current = conn.execute(
+                "SELECT status FROM offers WHERE id = ?", (offer_id,)
+            ).fetchone()
+            if not current or current["status"] != OfferStatus.DRAFT:
+                return None
+            conn.execute(
+                """INSERT OR IGNORE INTO media_assets
+                (sha256, relative_path, size_bytes, width, height, mime_type, created_at)
+                VALUES (?, ?, ?, ?, ?, 'image/jpeg', ?)""",
+                (image["sha256"], image["relative_path"], image["size_bytes"],
+                 image["width"], image["height"], utc_now()),
+            )
+            conn.execute(
+                "UPDATE offers SET image_sha256 = ? WHERE id = ? AND status = ?",
+                (image["sha256"], offer_id, OfferStatus.DRAFT),
+            )
+        return self.get_offer(offer_id)
+
+    def media_for_offer(self, offer_id: str) -> dict | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                """SELECT m.* FROM media_assets m JOIN offers o
+                ON o.image_sha256 = m.sha256 WHERE o.id = ?""",
+                (offer_id,),
             ).fetchone()
             return dict(row) if row else None
