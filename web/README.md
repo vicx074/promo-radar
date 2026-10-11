@@ -1,3 +1,5 @@
+> **Atualização de interface:** React + Vite usa Tailwind CSS 4 para responsividade mobile-first, mantendo Motion/Fancy Components. No celular há navegação inferior fixa; no computador, sidebar lateral. Os testes de viewport usam Playwright/Chromium (320 a 1440px). Veja [ADR 0013](../docs/decisions/0013-tailwind-mobile-first.md).
+
 # Promo Radar Web — React + Vite
 
 Painel administrativo componentizado em React 19 + TypeScript, Vite 6, Motion (microinteração inspirada no Fancy Components) e ícones Lucide.
@@ -48,3 +50,18 @@ Não insira cookies do Mercado Livre, token de sessão, JID de grupo ou chave ad
 ## Operação remota para uma pessoa
 
 O painel é uma ferramenta privada, não um SaaS. Não oferece cadastro de usuários, equipes ou planos. O acesso de VPS requer `SINGLE_OWNER_MODE=true` com senha Argon2id, cookie HTTPS e `ALLOW_ADMIN_API_KEY=false`, via Tailscale Serve. Veja [docs/private-vps.md](../docs/private-vps.md). É possível atualizar a página sem digitar novamente a senha até a sessão expirar; clicar em Sair revoga a sessão no SQLite. A interface não armazena credenciais em localStorage, sessionStorage ou cookies acessíveis por JavaScript.
+
+## Mobile e testes de responsividade
+
+O projeto utiliza `tailwindcss` + `@tailwindcss/vite` (v4). Use classes `sm:`, `md:`, `xl:` etc. nos componentes, em vez de novos breakpoints no CSS legado. As cores/sombras originais estão preservadas em `src/styles.css`, na camada `components`. Navegação inferior do celular considera `env(safe-area-inset-bottom)` e botões têm no mínimo 44px de altura; formulários usam fontes de 16px no celular para evitar zoom automático no Safari iOS.
+
+Para validar o layout em Chromium:
+
+```bash
+cd web
+npm install
+npx playwright install chromium
+npm run test:e2e
+```
+
+O CI testa larguras 320, 375, 390, 768, 1024 e 1440px com API **simulada**. Não substitui uma conferência manual no celular do operador conectado ao Tailscale.
