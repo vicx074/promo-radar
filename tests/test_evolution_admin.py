@@ -35,6 +35,8 @@ def test_list_groups_filters_non_groups():
     def handler(request):
         assert request.url.path == "/group/fetchAllGroups/promocoes"
         assert request.url.params["getParticipants"] == "false"
+        assert request.extensions["timeout"]["read"] == 90.0
+        assert request.extensions["timeout"]["connect"] == 5.0
         return httpx.Response(200, json=[
             {"id": "123@g.us", "subject": "Teste"},
             {"id": "456@g.us"},
@@ -57,3 +59,23 @@ def test_http_error_does_not_leak_response_body():
 def test_rejects_instance_path_traversal():
     with pytest.raises(ValueError):
         EvolutionAdmin("http://evolution:8080", "private-secret", "../../other")
+
+
+def test_group_read_timeout_reports_type_without_leaking_sensitive_details():
+    def handler(request):
+        raise httpx.ReadTimeout("private-secret private-qr", request=request)
+
+    with pytest.raises(RuntimeError, match="ReadTimeout") as caught:
+        mock_api(handler).list_groups()
+    assert "private-secret" not in str(caught.value)
+    assert "private-qr" not in str(caught.value)
+
+
+def test_groups_connection_error_reports_type_without_url():
+    def handler(request):
+        raise httpx.ConnectError("private-secret private-qr", request=request)
+
+    with pytest.raises(RuntimeError, match="ConnectError") as caught:
+        mock_api(handler).list_groups()
+    assert "private-secret" not in str(caught.value)
+    assert "private-qr" not in str(caught.value)
