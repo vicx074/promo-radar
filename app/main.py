@@ -279,7 +279,9 @@ def create_app(
         try:
             offers = store.select_search_items(
                 str(payload.search_id), payload.source_item_ids,
-                queue_affiliate=bool(settings.affiliate_bridge_token and settings.affiliate_auto_queue)
+                queue_affiliate=bool(
+                    settings.affiliate_bridge_token and settings.affiliate_auto_queue
+                )
             )
         except SearchSnapshotNotFound:
             raise HTTPException(status_code=404, detail="Busca não encontrada") from None
