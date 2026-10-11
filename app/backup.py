@@ -1,6 +1,6 @@
 import sqlite3
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from app.config import Settings
@@ -20,7 +20,7 @@ def backup_database(source: Path, destination: Path) -> None:
 
 
 if __name__ == "__main__":
-    filename = datetime.now(timezone.utc).strftime("offers-%Y%m%dT%H%M%SZ.db")
+    filename = datetime.now(UTC).strftime("offers-%Y%m%dT%H%M%SZ.db")
     dest = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("data/backups") / filename
     backup_database(Settings.from_env().sqlite_path, dest)
     print(f"Backup criado: {dest}")
