@@ -102,7 +102,15 @@ class SQLiteStore:
                 ).read_text()
                 conn.executescript(migration)
                 conn.execute("PRAGMA user_version = 6")
-            elif version != 6:
+                version = 6
+            if version == 6:
+                migration = Path(__file__).parent.joinpath(
+                    "migrations/007_affiliate_link_jobs.sql"
+                ).read_text()
+                conn.executescript(migration)
+                conn.execute("PRAGMA user_version = 7")
+                version = 7
+            if version != 7:
                 raise RuntimeError(f"Versão do SQLite incompatível: {version}")
 
     def health(self) -> bool:
