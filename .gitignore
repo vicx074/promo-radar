@@ -9,3 +9,6 @@ __pycache__/
 *.db-shm
 data/*
 !data/.gitkeep
+
+agent/.chrome-profile/
+agent/.env
