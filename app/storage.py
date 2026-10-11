@@ -1,6 +1,6 @@
 import sqlite3
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -16,6 +16,18 @@ class DuplicateOffer(Exception):
 
 
 class AlreadyPublishedOrInProgress(Exception):
+    pass
+
+
+class SearchSnapshotNotFound(Exception):
+    pass
+
+
+class SearchSnapshotExpired(Exception):
+    pass
+
+
+class SearchSelectionInvalid(Exception):
     pass
 
 
@@ -61,7 +73,14 @@ class SQLiteStore:
                 ).read_text()
                 conn.executescript(migration)
                 conn.execute("PRAGMA user_version = 3")
-            elif version != 3:
+                version = 3
+            if version == 3:
+                migration = Path(__file__).parent.joinpath(
+                    "migrations/004_search_snapshots.sql"
+                ).read_text()
+                conn.executescript(migration)
+                conn.execute("PRAGMA user_version = 4")
+            elif version != 4:
                 raise RuntimeError(f"Versão do SQLite incompatível: {version}")
 
     def health(self) -> bool:
@@ -172,3 +191,89 @@ class SQLiteStore:
                 (offer_id,),
             ).fetchone()
             return dict(row) if row else None
+
+
+    def save_search(self, query: str, source: str, items: list) -> dict:
+        search_id = str(uuid4())
+        now = datetime.now(UTC)
+        expires_at = (now + timedelta(minutes=45)).isoformat()
+        with self.connect() as conn:
+            conn.execute(
+                """INSERT INTO discovery_searches(id, source, query, created_at, expires_at)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (search_id, source, query, now.isoformat(), expires_at),
+            )
+            for item in items:
+                conn.execute(
+                    """INSERT INTO discovery_search_items
+                    (search_id, source_item_id, title, price_cents, product_url, image_url)
+                    VALUES (?, ?, ?, ?, ?, ?)""",
+                    (search_id, item.item_id, item.title, item.price_cents,
+                     item.product_url, item.image_url),
+                )
+        return {
+            "search_id": search_id,
+            "source": source,
+            "query": query,
+            "expires_at": expires_at,
+            "items": [
+                {
+                    "source_item_id": item.item_id,
+                    "title": item.title,
+                    "price_cents": item.price_cents,
+                    "product_url": item.product_url,
+                    "image_url": item.image_url,
+                    "price_history_available": False,
+                    "promotion_verified": False,
+                }
+                for item in items
+            ],
+        }
+
+    def select_search_items(self, search_id: str, item_ids: list[str]) -> list[dict]:
+        """Seleção atômica; valores vêm apenas do snapshot no banco."""
+        with self.connect() as conn:
+            search = conn.execute(
+                "SELECT * FROM discovery_searches WHERE id = ?", (search_id,)
+            ).fetchone()
+            if search is None:
+                raise SearchSnapshotNotFound
+            if datetime.fromisoformat(search["expires_at"]) <= datetime.now(UTC):
+                raise SearchSnapshotExpired
+            marks = ",".join("?" for _ in item_ids)
+            rows = conn.execute(
+                f"""SELECT * FROM discovery_search_items
+                   WHERE search_id = ? AND source_item_id IN ({marks})""",
+                (search_id, *item_ids),
+            ).fetchall()
+            by_id = {row["source_item_id"]: row for row in rows}
+            if len(by_id) != len(item_ids):
+                raise SearchSelectionInvalid
+            results = []
+            for item_id in item_ids:
+                row = by_id[item_id]
+                # Uma mesma oferta pode ser selecionada em buscas futuras sem duplicação;
+                # preço diferente gera candidato diferente, sem alterar um APPROVED.
+                offer_source_id = f"{item_id}-p{row['price_cents']}"
+                offer_id = str(uuid4())
+                created = conn.execute(
+                    """INSERT OR IGNORE INTO offers
+                    (id, source, source_item_id, title, price_cents,
+                     reference_price_cents, affiliate_url, image_url, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)""",
+                    (offer_id, search["source"], offer_source_id, row["title"],
+                     row["price_cents"], row["product_url"], row["image_url"],
+                     OfferStatus.DRAFT, utc_now()),
+                ).rowcount == 1
+                offer = conn.execute(
+                    """SELECT id, status FROM offers
+                       WHERE source = ? AND source_item_id = ?""",
+                    (search["source"], offer_source_id),
+                ).fetchone()
+                results.append({
+                    "source_item_id": item_id,
+                    "offer_id": offer["id"],
+                    "status": offer["status"],
+                    "created": created,
+                })
+            return results
