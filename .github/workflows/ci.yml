@@ -41,6 +41,15 @@ jobs:
           done
           grep -q '"status":"ok"' /tmp/promo-radar-health.json
           docker compose --env-file .env.example exec -T bot python -m app.evolution_admin --help
+      - name: Exercitar busca por nicho via HTTP no Docker
+        run: |
+          mkdir -p data/import
+          printf '%s\n'             'source_item_id,title,price_cents,product_url,image_url'             'MLB_TEST,Mouse de Teste,19990,https://www.mercadolivre.com.br/p/MLB123,'             > data/import/catalogo.csv
+          admin_key=$(sed -n 's/^ADMIN_API_KEY=//p' .env.example | head -n 1)
+          response=$(curl -fsS -X POST 'http://127.0.0.1:8000/api/v1/discovery/search'             -H "x-admin-key: $admin_key"             -H 'content-type: application/json'             --data '{"query":"mouse","limit":10}')
+          search_id=$(printf '%s' "$response" | python -c             'import json,sys; x=json.load(sys.stdin); assert len(x["items"])==1; assert x["items"][0]["promotion_verified"] is False; print(x["search_id"])')
+          selection=$(curl -fsS -X POST 'http://127.0.0.1:8000/api/v1/discovery/select'             -H "x-admin-key: $admin_key"             -H 'content-type: application/json'             --data "{\"search_id\":\"$search_id\",\"source_item_ids\":[\"MLB_TEST\"]}")
+          printf '%s' "$selection" | python -c             'import json,sys; x=json.load(sys.stdin); assert x["selected"][0]["status"]=="DRAFT"; assert x["selected"][0]["created"] is True'
       - name: Logs em caso de falha
         if: failure()
         run: docker compose --env-file .env.example logs bot || true
