@@ -43,6 +43,8 @@ docker compose exec -T bot python -m app.evolution_admin groups
 
 Escolha somente um grupo de testes sob seu controle. Copie o JID `...@g.us` para `WHATSAPP_GROUP_ID` no arquivo .env, sem publicá-lo em issues.
 
+A busca de grupos pode ser lenta em contas com muitos chats. O CLI reserva até **90 segundos de leitura** exclusivamente para essa listagem; o status da instância permanece com limite menor. Se falhar, `ReadTimeout` indica que o servidor demorou a responder, enquanto `ConnectError` indica falha de conexão; evite substituir a instância ou apagar volumes. Como diagnóstico, execute `docker compose logs --tail=60 evolution`, ocultando dados privados antes de compartilhar. Se `status` retorna `open` e `http://evolution:8080` responde 200, investigue especificamente o endpoint de grupos em vez de reiniciar toda a infraestrutura.
+
 ## 4. Validar sem enviar
 
 Abra [Swagger](http://127.0.0.1:8000/docs) localmente. Informe `x-admin-key` para usar endpoints administrativos. Cadastre oferta com link HTTPS, aprove e consulte a prévia. Com `SEND_ENABLED=false`, `publish` retorna HTTP 409 sem enviar.
