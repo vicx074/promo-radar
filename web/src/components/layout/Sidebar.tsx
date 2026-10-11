@@ -1,15 +1,13 @@
 import {
-  CalendarClock, ChevronLeft, CircleHelp, History, LayoutGrid, LifeBuoy,
-  PackageCheck, Radio, Settings2, ShieldCheck, Sparkles,
+  ChevronLeft, CircleHelp, History, LayoutGrid, LifeBuoy,
+  PackageCheck, Settings2, ShieldCheck, Sparkles,
 } from "lucide-react";
 import type {Section} from "../../types";
 import {LetterSwap} from "../ui/LetterSwap";
 
 const pages: Array<{id: Section; label: string; icon: typeof LayoutGrid; soon?: boolean}> = [
-  {id: "discovery", label: "Descobrir ofertas", icon: LayoutGrid},
-  {id: "offers", label: "Minhas ofertas", icon: PackageCheck},
-  {id: "groups", label: "Grupos WhatsApp", icon: Radio, soon: true},
-  {id: "campaigns", label: "Programações", icon: CalendarClock, soon: true},
+  {id: "discovery", label: "Descobrir", icon: LayoutGrid},
+  {id: "offers", label: "Ofertas", icon: PackageCheck},
   {id: "history", label: "Histórico", icon: History},
   {id: "settings", label: "Configurações", icon: Settings2},
 ];
@@ -39,7 +37,7 @@ export function Sidebar({section, onNavigate, onLogout}: {
       <div className="sidebar-helper">
         <span className="helper-icon"><ShieldCheck size={21} /></span>
         <strong>Curadoria com controle</strong>
-        <p>As ofertas só são publicadas após sua aprovação.</p>
+        <p>Ofertas revisadas antes de qualquer envio.</p>
         <span className="helper-status"><span className="status-dot" /> Proteção de envio ativa</span>
       </div>
     </div>
