@@ -1,8 +1,8 @@
 """Download restrito, transcodificação JPEG e cache persistente de imagens."""
 
 import hashlib
-import ipaddress
 import io
+import ipaddress
 import socket
 import warnings
 from dataclasses import dataclass
