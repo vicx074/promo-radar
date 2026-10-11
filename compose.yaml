@@ -1,6 +1,8 @@
 services:
   bot:
-    build: .
+    build:
+      context: .
+      target: runtime
     restart: unless-stopped
     environment:
       ADMIN_API_KEY: ${ADMIN_API_KEY:?defina em .env}
