@@ -119,6 +119,7 @@ def test_rejects_redirects_lookalike_hosts_wrong_images_and_deduplicates():
         fake_item(url="https://click1.mercadolivre.com.br/mclics/clicks"),
         fake_item(url="https://www.mercadolivre.com.br.evil.org/foo"),
         fake_item(url="https://evil.org/anything"),
+        fake_item(url="https://www.mercadolivre.com.br/other", currency="USD"),
         fake_item(url="https://www.mercadolivre.com.br@evil.org/foo"),
         fake_item(url=PRODUCT_URL, image="https://evil.org/img.jpg"),
         fake_item(url=PRODUCT_URL),
