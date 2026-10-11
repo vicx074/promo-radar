@@ -142,7 +142,8 @@ class SQLiteStore:
             # Coluna v1 'affiliate_url' continha URL comum e nunca foi atestada.
             offer["affiliate_url"] = offer["affiliate_link_url"]
             offer["affiliate_status"] = (
-                "OPERATOR_SUBMITTED" if offer["affiliate_link_url"] else "MISSING"
+                (offer["affiliate_link_provenance"] or "OPERATOR_SUBMITTED")
+                if offer["affiliate_link_url"] else "MISSING"
             )
         else:
             offer["product_url"] = offer["product_url"] or offer["affiliate_url"]
@@ -151,13 +152,18 @@ class SQLiteStore:
 
     def get_offer(self, offer_id: str) -> dict | None:
         with self.connect() as conn:
-            row = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
+            row = conn.execute(
+                """SELECT o.*,(SELECT status FROM affiliate_link_jobs j WHERE j.offer_id=o.id)
+                   AS affiliate_job_status FROM offers o WHERE o.id=?""", (offer_id,),
+            ).fetchone()
             return self.present_offer(row) if row else None
 
     def list_offers(self, limit: int = 50) -> list[dict]:
         with self.connect() as conn:
             rows = conn.execute(
-                "SELECT * FROM offers ORDER BY created_at DESC, id DESC LIMIT ?", (limit,)
+                """SELECT o.*,(SELECT status FROM affiliate_link_jobs j WHERE j.offer_id=o.id)
+                   AS affiliate_job_status FROM offers o
+                   ORDER BY o.created_at DESC,o.id DESC LIMIT ?""", (limit,)
             ).fetchall()
             return [self.present_offer(row) for row in rows]
 
