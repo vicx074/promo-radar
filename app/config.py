@@ -13,6 +13,10 @@ class Settings:
     whatsapp_group_id: str
     send_enabled: bool = False
     media_allowed_hosts: tuple[str, ...] = ("http2.mlstatic.com",)
+    owner_password_hash: str = ""
+    session_cookie_secure: bool = True
+    allow_admin_api_key: bool = True
+    single_owner_mode: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -24,6 +28,10 @@ class Settings:
             evolution_instance=os.getenv("EVOLUTION_INSTANCE", "promocoes"),
             whatsapp_group_id=os.getenv("WHATSAPP_GROUP_ID", ""),
             send_enabled=os.getenv("SEND_ENABLED", "false").strip().lower() == "true",
+            owner_password_hash=os.getenv("OWNER_PASSWORD_HASH", ""),
+            session_cookie_secure=os.getenv("SESSION_COOKIE_SECURE", "true").lower() == "true",
+            allow_admin_api_key=os.getenv("ALLOW_ADMIN_API_KEY", "true").lower() == "true",
+            single_owner_mode=os.getenv("SINGLE_OWNER_MODE", "false").lower() == "true",
             media_allowed_hosts=tuple(
                 item.strip().lower()
                 for item in os.getenv("MEDIA_ALLOWED_HOSTS", "http2.mlstatic.com").split(",")
