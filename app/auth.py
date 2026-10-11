@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from argon2 import PasswordHasher
-from argon2.exceptions import InvalidHashError, VerifyMismatchError, VerificationError
+from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 
 COOKIE_SECURE_NAME = "__Host-promo_session"
 COOKIE_LOCAL_NAME = "promo_session"
@@ -87,7 +87,11 @@ class OwnerAuth:
             ).fetchone()
             if row["locked_until"] > now:
                 return
-            attempts = row["attempts"] + 1 if now - row["window_started_at"] < LOGIN_WINDOW_SECONDS else 1
+            attempts = (
+                row["attempts"] + 1
+                if now - row["window_started_at"] < LOGIN_WINDOW_SECONDS
+                else 1
+            )
             locked = now + LOGIN_LOCK_SECONDS if attempts >= MAX_LOGIN_FAILURES else 0
             conn.execute(
                 "UPDATE owner_login_throttle SET attempts=?,window_started_at=?,locked_until=? "
@@ -109,7 +113,8 @@ class OwnerAuth:
             # Cada login revoga todas as sessões anteriores: apenas uma sessão ativa.
             conn.execute("DELETE FROM owner_sessions")
             conn.execute(
-                "INSERT INTO owner_sessions(token_hash,csrf_token,created_at,last_seen_at,expires_at) "
+                "INSERT INTO owner_sessions("
+                "token_hash,csrf_token,created_at,last_seen_at,expires_at) "
                 "VALUES(?,?,?,?,?)",
                 (token_hash(raw_token), csrf, now, now, now + SESSION_ABSOLUTE_SECONDS),
             )
@@ -129,7 +134,9 @@ class OwnerAuth:
             if row is None:
                 return None
             if row["expires_at"] <= now or now - row["last_seen_at"] >= SESSION_IDLE_SECONDS:
-                conn.execute("DELETE FROM owner_sessions WHERE token_hash=?", (token_hash(raw_token),))
+                conn.execute(
+                    "DELETE FROM owner_sessions WHERE token_hash=?", (token_hash(raw_token),)
+                )
                 return None
             conn.execute(
                 "UPDATE owner_sessions SET last_seen_at=? WHERE token_hash=?",
