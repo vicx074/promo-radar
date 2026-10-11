@@ -1,5 +1,7 @@
 # Promo Radar
 
+> **Modo de operação recomendado: painel privado para um único operador em VPS via Tailscale Serve HTTPS.** Acesso com senha Argon2id, sessão HttpOnly e CSRF, sem cadastro de usuários ou SaaS. Consulte [guia de implantação privada](docs/private-vps.md) e [ADR 0011](docs/decisions/0011-private-single-owner-auth.md). A senha entra somente no login do Promo Radar, nunca no Mercado Livre.
+
 Backend para curadoria de promoções de tecnologia e publicação manualmente aprovada em **grupo próprio do WhatsApp**, usando Python, FastAPI, SQLite e Evolution API v2.
 
 **Estado atual: fundação / MVP 0.1.** API administrativa, banco SQLite, backup consistente, adapter Evolution, aprovação de ofertas, preview, registro durável de envio e testes. **A descoberta automática de marketplaces e a geração de links de afiliados ainda não existem**; foi adicionada uma importação manual de catálogo autorizado com histórico de preços e geração de candidatos DRAFT. Não há painel nem scheduler. A integração real de WhatsApp deve ser validada por cada operador.
@@ -130,7 +132,7 @@ O painel poderá buscar **quando o operador solicitar**, sem coleta periódica. 
 
 Consulte [guia de busca sob demanda](docs/on-demand-discovery.md) e [ADR 0007](docs/decisions/0007-on-demand-search.md). A CI testa busca e seleção em Python e Docker, com catálogo sintético e sem WhatsApp real.
 
-## Links de afiliado reais (cadastro manual, schema v5)
+## Links de afiliado reais (cadastro manual, schema v6)
 
 A URL comum de produto foi separada da URL de divulgação do afiliado. `GET /api/v1/offers/{id}` apresenta `product_url` e `affiliate_url`, que fica `null` para Mercado Livre até o operador cadastrar explicitamente em `POST /api/v1/offers/{id}/affiliate-link`. Ofertas Mercado Livre não podem ser aprovadas nem publicadas sem cadastro. Não adicionamos login nem geração automática: o status da integração Mercado Livre permanece `DISCONNECTED`. **A validação do formato do link não comprova comissão nem que pertence à conta.** Veja [guia](docs/affiliate-links.md) e [ADR 0009](docs/decisions/0009-affiliate-links-foundation.md).
 
@@ -143,3 +145,9 @@ O frontend está em `./web`, com **React 19, Vite 6, TypeScript, Motion/Fancy Co
 **Não implementado:** busca ao vivo no Mercado Livre, conexão OAuth da conta de afiliado, geração automática de links, agendador, gerenciamento visual de grupos e lista completa de histórico. Essas telas mostram explicitamente as limitações, sem simular integração.
 
 **Atenção:** antes de abrir o frontend, use uma versão do backend com migração SQLite v5 (PR #6). O painel não deve ser publicado diretamente na Internet com chave administrativa compartilhada. `SEND_ENABLED=false` continua o padrão. A existência da UI não equivale à validação real de comissão ou entrega ao WhatsApp.
+
+## Autenticação para operador único (PR #8)
+
+O painel **não pede ADMIN_API_KEY**: digite a senha privada configurada na VPS; o backend verifica hash Argon2id, cria sessão com token opaco e cookie `__Host-promo_session` (`Secure`, `HttpOnly`, `SameSite=Strict`). A sessão expira após até 12h ou 30 minutos sem atividade; um novo login revoga o anterior. Operações mutáveis exigem Origin e CSRF. Após 5 senhas erradas, o login fica bloqueado 15 minutos. A VPS deve usar `SINGLE_OWNER_MODE=true`, `ALLOW_ADMIN_API_KEY=false`, `SESSION_COOKIE_SECURE=true` e HTTPS Tailscale Serve. `SEND_ENABLED=false` segue como padrão.
+
+As instruções históricas deste README relativas a digitar `ADMIN_API_KEY` referem-se apenas à API/CLI legada em ambientes de desenvolvimento; **não devem ser usadas para autenticar o navegador nem ativadas em VPS privada**. Os dados permanecem locais no SQLite e os segredos apenas na VPS. Veja [passo a passo da VPS](docs/private-vps.md).
