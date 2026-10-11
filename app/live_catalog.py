@@ -93,6 +93,8 @@ def parse_apify_items(data: object, *, limit: int) -> list[CatalogItem]:
             continue
         if row.get("available") is False:
             continue
+        if row.get("currency", "BRL") != "BRL":
+            continue
         if str(row.get("status", "")).lower() in _BAD_STOCK:
             continue
         title = row.get("title")
