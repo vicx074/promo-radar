@@ -55,7 +55,7 @@ def test_automatic_link_generation_queue_and_match(tmp_path):
         assert offer["affiliate_job_status"] == "PENDING"
         assert offer["affiliate_url"] is None
         assert offer["status"] == "DRAFT"
-        assert client.get("/health").json()["schema_version"] == 7
+        assert client.get("/health").json()["schema_version"] == 8
 
         assert client.post("/api/v1/affiliate-agent/claim").status_code == 401
         assert client.post("/api/v1/affiliate-agent/claim",
@@ -204,4 +204,4 @@ def test_bridge_migration_from_schema_v6_keeps_offers(tmp_path):
     store.initialize()
     assert store.get_offer("old")["affiliate_link_url"] is None
     with sqlite3.connect(db) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 7
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 8
