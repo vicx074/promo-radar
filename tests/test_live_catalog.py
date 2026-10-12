@@ -19,7 +19,8 @@ IMAGE = "https://http2.mlstatic.com/D_TEST.webp"
 def fake_item(**kwargs):
     return {
         "productId": None, "title": "Notebook Lenovo com 16GB",
-        "price": 2599.90, "url": PRODUCT_URL,
+        "price": 2599.90, "originalPrice": 3200.00, "discount": "19% OFF",
+        "url": PRODUCT_URL,
         "image": IMAGE, "currency": "BRL", **kwargs,
     }
 
@@ -60,6 +61,8 @@ def test_live_search_and_selection_only_draft(tmp_path):
         assert len(data["items"]) == 1
         item = data["items"][0]
         assert item["price_cents"] == 259990
+        assert item["reference_price_cents"] == 320000
+        assert item["discount_percent"] == 18
         assert item["product_url"] == PRODUCT_URL
         assert item["image_url"] == IMAGE
         assert item["promotion_verified"] is False
@@ -76,6 +79,7 @@ def test_live_search_and_selection_only_draft(tmp_path):
         offer = client.get("/api/v1/offers/" + offer_id, headers=ADMIN).json()
         assert offer["status"] == "DRAFT"
         assert offer["product_url"] == PRODUCT_URL
+        assert offer["reference_price_cents"] == 320000
         assert offer["affiliate_url"] is None
         assert client.post("/api/v1/offers/" + offer_id + "/approve",
                            headers=ADMIN).status_code == 409
@@ -89,7 +93,7 @@ def test_live_search_and_selection_only_draft(tmp_path):
     payload = json.loads(request.content)
     assert payload["keyword"] == "notebook"
     assert payload["maxPages"] == 1
-    assert payload["maxItems"] == 10
+    assert payload["maxItems"] == 30
     assert request.url.params["maxTotalChargeUsd"] == "0.20"
 
 
@@ -156,3 +160,61 @@ def test_offline_mode_remains_explicit_for_existing_csv_tests(tmp_path):
     cfg = config(tmp_path)
     assert cfg.discovery_provider == "apify"
     assert Settings.from_env().discovery_provider in {"csv", "apify"}
+
+
+def test_only_discounted_products_and_discount_from_prices():
+    # Sinal textual de desconto sem preço riscado não é suficiente para
+    # mostrar "De/Por": a referência precisa ser numérica e maior.
+    rows = [
+        fake_item(productId="MLBNO", originalPrice=None, discount="30% OFF"),
+        fake_item(productId="MLBEQ", originalPrice=2599.90),
+        fake_item(productId="MLBLOW", originalPrice=2000),
+        fake_item(productId="MLBTINY", originalPrice=2600.01),
+        fake_item(productId="MLBBAD", originalPrice="custo invalido"),
+        fake_item(productId="MLBYES", originalPrice=3199.90, discount="99% OFF"),
+    ]
+    parsed = parse_apify_items(rows, limit=20)
+    assert len(parsed) == 1
+    assert parsed[0].item_id == "MLBYES"
+    assert parsed[0].reference_price_cents == 319990
+    # Percentual textual informado pela Apify é ignorado se não bate com valores.
+    assert (319990 - parsed[0].price_cents) * 100 // 319990 == 18
+
+
+def test_valid_listings_with_no_discount_are_empty_not_bad_schema():
+    rows = [
+        fake_item(productId="MLB1", originalPrice=None),
+        fake_item(productId="MLB2", originalPrice=2599.90),
+    ]
+    assert parse_apify_items(rows, limit=20) == []
+
+
+def test_search_no_promos_does_not_create_false_offers(tmp_path):
+    mock, _ = client_with_response(body=[fake_item(originalPrice=None)])
+    provider = ApifyCatalogProvider("only-test-token", client=mock)
+    with TestClient(create_app(config(tmp_path), catalog_provider=provider)) as client:
+        response = client.post("/api/v1/discovery/search", headers=ADMIN,
+                               json={"query": "notebook", "limit": 20})
+        assert response.status_code == 200
+        assert response.json()["items"] == []
+        assert client.get("/api/v1/offers", headers=ADMIN).json() == []
+
+
+def test_discounted_price_preserved_after_search_snapshot(tmp_path):
+    mock, _ = client_with_response(body=[fake_item(originalPrice=3999.99)])
+    provider = ApifyCatalogProvider("only-test-token", client=mock)
+    with TestClient(create_app(config(tmp_path), catalog_provider=provider)) as client:
+        search = client.post("/api/v1/discovery/search", headers=ADMIN,
+                             json={"query": "notebook", "limit": 10}).json()
+        item = search["items"][0]
+        assert item["reference_price_cents"] == 399999
+        assert item["discount_percent"] == 35
+        created = client.post("/api/v1/discovery/select", headers=ADMIN, json={
+            "search_id": search["search_id"], "source_item_ids": [item["source_item_id"]],
+        })
+        assert created.status_code == 200
+        oid = created.json()["selected"][0]["offer_id"]
+        offer = client.get("/api/v1/offers/" + oid, headers=ADMIN).json()
+        assert offer["reference_price_cents"] == 399999
+        preview = client.get("/api/v1/offers/" + oid + "/preview", headers=ADMIN).json()
+        assert "35% abaixo" in preview["message"]
