@@ -42,3 +42,7 @@ Em produção `DISCOVERY_PROVIDER=apify` lê anúncios reais a cada solicitaçã
 ## Layout mobile-first Tailwind CSS 4
 
 Vite usa plugin `@tailwindcss/vite`; o frontend compõe classes de layout Tailwind em JSX, mantendo classes cosméticas em `styles.css` na camada `components`. Em dispositivos de até 767px, a navegação ocorre por tabs fixas inferiores, com safe-area iOS; a partir de 768px, sidebar fixa. O grid de ofertas simplifica para coluna única no tablet/celular e painel duplo no desktop largo. Tarefas de negócio, sessão HttpOnly e API FastAPI são inalteradas. E2E Chromium via Playwright simula API e confere ausência de overflow horizontal. Ver [ADR 0013](docs/decisions/0013-tailwind-mobile-first.md).
+
+## Geração local de links de afiliado (schema v7)
+
+`app/affiliate_bridge.py` gerencia fila SQLite de geração de link em DRAFT, reservando PROCESSING por 120 segundos e marcando FAILED após expiração, sem repetição automática. Um worker Python/Playwright em `agent/` roda no computador do titular com sessão Chrome local; não há cookies ou senha ML na VPS. Os endpoints `/api/v1/affiliate-agent/*` exigem token próprio separado e não permitem aprovação/publicação. Rotas do operador permanecem cookie+CSRF. O conector não é OAuth, utiliza endpoints internos não oficiais e precisa de validação real com o titular. Veja [ADR 0014](docs/decisions/0014-local-affiliate-bridge.md).
