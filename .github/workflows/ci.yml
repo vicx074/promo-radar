@@ -12,6 +12,7 @@ jobs:
           python-version: '3.12'
       - run: pip install -e '.[dev]'
       - run: ruff check app tests
+      - run: python -m py_compile agent/affiliate_worker.py app/apify_probe.py
       - run: pytest -q
       - run: docker compose --env-file .env.example config -q
 
