@@ -23,6 +23,8 @@ class CatalogItem:
     price_cents: int
     product_url: str
     image_url: str | None = None
+    # Preço de referência exibido no anúncio (não é histórico verificado).
+    reference_price_cents: int | None = None
 
 
 @dataclass(frozen=True)
