@@ -111,7 +111,7 @@ export function DiscoveryPage({onOpenOffer}: {
     {searching&&<div className="loading-card"><div className="spinner"/><p>Buscando anúncios no Mercado Livre...</p></div>}
     {result&&<section className="results">
       <div className="results-header flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div><div className="eyebrow">RESULTADO DA BUSCA</div><h2>{result.items.length} {result.live?"promoção":"produto"}{result.items.length===1?"":"s"} encontrada{result.items.length===1?"":"s"}</h2><p>Para “{result.query}” · {result.live ? 'coleta terceirizada (Apify)' : 'catálogo CSV local'}</p></div>
+        <div><div className="eyebrow">RESULTADO DA BUSCA</div><h2>{result.items.length} {result.live?`promoção${result.items.length===1?"":"ões"} encontrada${result.items.length===1?"":"s"}`:`produto${result.items.length===1?"":"s"} encontrado${result.items.length===1?"":"s"}`}</h2><p>Para “{result.query}” · {result.live ? 'coleta terceirizada (Apify)' : 'catálogo CSV local'}</p></div>
         <div className="results-info"><Clock3 size={15}/> Seleção válida por 45 min</div>
       </div>
       {result.items.length===0?<div className="empty-panel"><PackageSearch size={30}/><h3>Nenhuma promoção identificada</h3><p>{result.live?"Não encontramos anúncios com preço original maior que o preço atual nesta consulta. Tente outra palavra-chave.":"Tente outro termo ou atualize o catálogo autorizado."}</p></div>:
