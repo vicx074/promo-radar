@@ -259,7 +259,7 @@ def create_app(
     def health():
         if not store.health():
             raise HTTPException(status_code=503, detail="SQLite indisponível")
-        return {"status": "ok", "schema_version": 7}
+        return {"status": "ok", "schema_version": 8}
 
     @app.get("/api/v1/discovery/provider-status", dependencies=[Depends(admin)])
     def discovery_provider_status():
