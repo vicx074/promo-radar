@@ -25,11 +25,17 @@ def discount_percent(price_cents: int, reference_price_cents: int | None) -> int
 
 
 def format_offer(offer: dict) -> str:
-    lines = ["*OFERTA DE TECNOLOGIA*", "", offer["title"],
-             f"Preço: *{format_brl(offer['price_cents'])}*"]
-    discount = discount_percent(offer["price_cents"], offer["reference_price_cents"])
+    lines = ["*OFERTA DE TECNOLOGIA*", "", offer["title"]]
+    original = offer["reference_price_cents"]
+    discount = discount_percent(offer["price_cents"], original)
     if discount:
-        lines.append(f"{discount}% abaixo do preço de referência informado")
+        lines += [
+            f"De: {format_brl(original)}",
+            f"Por: *{format_brl(offer['price_cents'])}*",
+            f"{discount}% OFF sobre o preço original exibido no anúncio",
+        ]
+    else:
+        lines.append(f"Preço: *{format_brl(offer['price_cents'])}*")
     affiliate_url = offer.get("affiliate_url")
     product_url = offer.get("product_url")
     destination = affiliate_url or product_url
