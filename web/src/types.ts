@@ -12,6 +12,7 @@ export interface Offer {
   product_url: string | null;
   affiliate_url: string | null;
   affiliate_status: string;
+  affiliate_job_status?: "PENDING" | "PROCESSING" | "LINKED" | "FAILED" | "CANCELLED" | null;
   image_url: string | null;
   created_at: string;
 }
@@ -64,4 +65,18 @@ export interface OwnerSession {
   authenticated: boolean;
   csrf_token: string;
   expires_at: number;
+}
+
+export interface AffiliateBridgeStatus {
+  configured: boolean;
+  worker_online: boolean;
+  last_seen_at: number | null;
+  jobs: Partial<Record<"PENDING"|"PROCESSING"|"LINKED"|"FAILED"|"CANCELLED",number>>;
+  connection_method: string;
+  marketplace_session_verified: boolean;
+}
+export interface DiscoveryProviderStatus {
+  provider: string;
+  configured: boolean;
+  requires_token: boolean;
 }

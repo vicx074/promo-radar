@@ -6,6 +6,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
 
 from app.affiliate import AffiliateLinkError, validate_official_link
+from app.affiliate_bridge import AffiliateBridge, JobConflict, JobInvalid
 from app.auth import OwnerAuth, cookie_name, verify_origin, verify_password
 from app.catalog import CatalogUnavailable, CsvCatalogProvider, InvalidCatalog
 from app.config import Settings
@@ -24,6 +25,14 @@ from app.storage import (
     SearchSnapshotNotFound,
     SQLiteStore,
 )
+
+
+class BridgeComplete(BaseModel):
+    job_id: UUID
+    claim_token: str = Field(min_length=20, max_length=200)
+    affiliate_url: HttpUrl | None = None
+    origin_url: HttpUrl | None = None
+    error_code: str | None = Field(default=None, max_length=40)
 
 
 class OwnerLogin(BaseModel):
@@ -113,6 +122,7 @@ def create_app(
 ) -> FastAPI:
     store = SQLiteStore(settings.sqlite_path)
     owner_auth = OwnerAuth(store)
+    bridge = AffiliateBridge(store)
     publisher = publisher or EvolutionPublisher(
         settings.evolution_base_url, settings.evolution_api_key, settings.evolution_instance
     )
@@ -141,6 +151,8 @@ def create_app(
                 raise RuntimeError("A VPS exige SESSION_COOKIE_SECURE=true")
             if settings.allow_admin_api_key:
                 raise RuntimeError("Na VPS, configure ALLOW_ADMIN_API_KEY=false")
+        if settings.affiliate_bridge_token and len(settings.affiliate_bridge_token) < 40:
+            raise RuntimeError("AFFILIATE_BRIDGE_TOKEN exige pelo menos 40 caracteres")
         store.initialize()
         yield
 
@@ -172,6 +184,16 @@ def create_app(
         ):
             return
         session_only(request)
+
+    def bridge_only(request: Request) -> None:
+        authorization = request.headers.get("authorization", "")
+        token = settings.affiliate_bridge_token
+        if (
+            not token or not authorization.startswith("Bearer ")
+            or len(authorization) > 256 or request.headers.get("origin")
+            or not hmac.compare_digest(authorization.removeprefix("Bearer "), token)
+        ):
+            raise HTTPException(status_code=401, detail="Conector local não autorizado")
 
     @app.post("/api/v1/auth/login")
     def login(payload: OwnerLogin, request: Request, response: Response):
@@ -237,7 +259,18 @@ def create_app(
     def health():
         if not store.health():
             raise HTTPException(status_code=503, detail="SQLite indisponível")
-        return {"status": "ok", "schema_version": 6}
+        return {"status": "ok", "schema_version": 7}
+
+    @app.get("/api/v1/discovery/provider-status", dependencies=[Depends(admin)])
+    def discovery_provider_status():
+        return {
+            "provider": settings.discovery_provider,
+            "configured": (
+                bool(settings.apify_token)
+                if settings.discovery_provider == "apify" else True
+            ),
+            "requires_token": settings.discovery_provider == "apify",
+        }
 
     @app.post("/api/v1/discovery/search", dependencies=[Depends(admin)])
     def search_catalog(payload: CatalogSearch):
@@ -256,7 +289,10 @@ def create_app(
     def select_catalog(payload: CatalogSelection):
         try:
             offers = store.select_search_items(
-                str(payload.search_id), payload.source_item_ids
+                str(payload.search_id), payload.source_item_ids,
+                queue_affiliate=bool(
+                    settings.affiliate_bridge_token and settings.affiliate_auto_queue
+                )
             )
         except SearchSnapshotNotFound:
             raise HTTPException(status_code=404, detail="Busca não encontrada") from None
@@ -273,6 +309,43 @@ def create_app(
     @app.get("/api/v1/affiliates/mercado-livre/status", dependencies=[Depends(admin)])
     def affiliate_status():
         return store.affiliate_connection_status()
+
+    @app.get("/api/v1/affiliate-bridge/status", dependencies=[Depends(admin)])
+    def bridge_status():
+        return bridge.status(configured=bool(settings.affiliate_bridge_token))
+
+    @app.post("/api/v1/offers/{offer_id}/affiliate-link/queue",
+              dependencies=[Depends(admin)])
+    def queue_affiliate_link(offer_id: str):
+        if not settings.affiliate_bridge_token:
+            raise HTTPException(status_code=503, detail="Configure AFFILIATE_BRIDGE_TOKEN")
+        try:
+            return bridge.queue_offer(offer_id)
+        except JobInvalid as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from None
+        except JobConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from None
+
+    @app.post("/api/v1/affiliate-agent/heartbeat", dependencies=[Depends(bridge_only)])
+    def affiliate_agent_heartbeat():
+        bridge.heartbeat()
+        return {"ok": True}
+
+    @app.post("/api/v1/affiliate-agent/claim", dependencies=[Depends(bridge_only)])
+    def affiliate_agent_claim():
+        return {"job": bridge.claim()}
+
+    @app.post("/api/v1/affiliate-agent/complete", dependencies=[Depends(bridge_only)])
+    def affiliate_agent_complete(payload: BridgeComplete):
+        try:
+            return bridge.finish(
+                str(payload.job_id), payload.claim_token,
+                affiliate_url=str(payload.affiliate_url) if payload.affiliate_url else None,
+                origin_url=str(payload.origin_url) if payload.origin_url else None,
+                error_code=payload.error_code,
+            )
+        except JobConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from None
 
     @app.post("/api/v1/offers", status_code=201, dependencies=[Depends(admin)])
     def create_offer(payload: OfferCreate):

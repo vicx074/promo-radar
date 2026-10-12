@@ -15,7 +15,7 @@ from app.catalog import CatalogUnavailable, InvalidCatalog
 from app.discovery import CatalogItem, _valid_product_url
 
 _ACTOR_ENDPOINT = (
-    "https://api.apify.com/v2/acts/"
+    "https://api.apify.com/v2/actors/"
     "gio21~mercado-livre-scraper/run-sync-get-dataset-items"
 )
 _ID = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")

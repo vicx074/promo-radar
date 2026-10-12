@@ -19,6 +19,8 @@ class Settings:
     single_owner_mode: bool = False
     discovery_provider: str = "csv"
     apify_token: str = ""
+    affiliate_bridge_token: str = ""
+    affiliate_auto_queue: bool = True
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -36,6 +38,8 @@ class Settings:
             single_owner_mode=os.getenv("SINGLE_OWNER_MODE", "false").lower() == "true",
             discovery_provider=os.getenv("DISCOVERY_PROVIDER", "apify").lower(),
             apify_token=os.getenv("APIFY_TOKEN", ""),
+            affiliate_bridge_token=os.getenv("AFFILIATE_BRIDGE_TOKEN", ""),
+            affiliate_auto_queue=os.getenv("AFFILIATE_AUTO_QUEUE", "true").lower() == "true",
             media_allowed_hosts=tuple(
                 item.strip().lower()
                 for item in os.getenv("MEDIA_ALLOWED_HOSTS", "http2.mlstatic.com").split(",")

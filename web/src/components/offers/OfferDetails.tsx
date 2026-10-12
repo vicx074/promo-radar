@@ -1,6 +1,6 @@
 import {useEffect,useState,type FormEvent} from "react";
 import {
-  BadgeCheck,CheckCircle2,ClipboardList,ExternalLink,ImagePlus,Link2, Send,
+  BadgeCheck,CheckCircle2,ClipboardList,ExternalLink,ImagePlus,Link2, RefreshCcw, Send,
   ShieldAlert,Sparkles,
 } from "lucide-react";
 import {apiRequest,errorMessage} from "../../lib/api";
@@ -40,6 +40,33 @@ export function OfferDetails({offerId,onUpdated}:{
     try{await task();}
     catch(err){setError(errorMessage(err));}
     finally{setBusy(false);}
+  }
+
+
+  async function refreshLinkStatus() {
+    try {
+      const o=await apiRequest<Offer>("/api/v1/offers/"+encodeURIComponent(offerId));
+      setOffer(o);
+      if(o.affiliate_url){
+        setPreview(await apiRequest<OfferPreview>(
+          "/api/v1/offers/"+encodeURIComponent(offerId)+"/preview",
+        ));
+      }
+    }catch(err){setError(errorMessage(err));}
+  }
+  useEffect(()=>{
+    if(offer?.affiliate_job_status!=="PENDING"&&offer?.affiliate_job_status!=="PROCESSING")return;
+    const timer=window.setInterval(()=>{void refreshLinkStatus();},12000);
+    return ()=>window.clearInterval(timer);
+  },[offerId,offer?.affiliate_job_status]);
+
+  function queueAutomaticLink() {
+    void execute(async()=>{
+      await apiRequest("/api/v1/offers/"+encodeURIComponent(offerId)+
+        "/affiliate-link/queue",{method:"POST"});
+      await refreshLinkStatus();
+      setSuccess("Solicitação enviada ao conector local. A geração ocorre enquanto o computador estiver ligado e a sessão de afiliados ativa.");
+    });
   }
 
   function saveLink(event:FormEvent) {
@@ -105,6 +132,25 @@ export function OfferDetails({offerId,onUpdated}:{
         <span className="registered-link min-w-0"><Link2 size={15}/><span title={offer.affiliate_url}>{offer.affiliate_url}</span></span>:
         <span className="missing-link">Não cadastrado</span>}</div>
     </div>
+    {canLink&&<div className="rounded-xl border border-blue-100 bg-blue-50/70 p-4 text-xs text-slate-700">
+      <div className="mb-2 flex items-center gap-2 font-bold text-blue-800"><Link2 size={16}/> Link automático de afiliado</div>
+      <p className="leading-relaxed">
+        {offer.affiliate_job_status==="PENDING"?"Aguardando o conector no computador do titular.":
+         offer.affiliate_job_status==="PROCESSING"?"O computador está gerando o link na Central de Afiliados.":
+         offer.affiliate_job_status==="FAILED"?"A geração falhou ou expirou. Verifique o Chrome e tente novamente.":
+         offer.affiliate_url?"Link vinculado ao produto. Confirme a comissão na Central de Afiliados.":
+         "Selecione gerar para solicitar um link com a sessão autorizada do titular."}
+      </p>
+      {!offer.affiliate_url&&<div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" className="button secondary min-h-11" disabled={busy||offer.affiliate_job_status==="PENDING"||offer.affiliate_job_status==="PROCESSING"} onClick={queueAutomaticLink}>
+          <Link2 size={16}/>{offer.affiliate_job_status==="FAILED"?"Tentar novamente":"Gerar link automaticamente"}
+        </button>
+        <button type="button" className="button subtle min-h-11" disabled={busy} onClick={()=>{void refreshLinkStatus();}}>
+          <RefreshCcw size={15}/> Atualizar
+        </button>
+      </div>}
+      <p className="mt-2 text-[11px] text-slate-500">Método não oficial. Não transfere cookies nem senha para o servidor.</p>
+    </div>}
     {canLink&&<form className="affiliate-form" onSubmit={saveLink}>
       <div className="form-subtitle"><Link2 size={17}/> Cadastrar link de afiliado</div>
       <p>Gere o link na Central de Afiliados e cole aqui o endereço correspondente a este produto.</p>
@@ -119,7 +165,7 @@ export function OfferDetails({offerId,onUpdated}:{
     {isMl&&!offer.affiliate_url&&offer.status==="APPROVED"&&<Feedback tone="error">Esta oferta antiga foi aprovada antes da separação dos links. Por segurança, sua publicação permanece bloqueada. Crie um novo rascunho e vincule o link correto.</Feedback>}
     <div className="review-steps">
       <div className="review-step"><span className={"step-icon "+(!noLink?"done":"")}>{!noLink?<CheckCircle2 size={17}/>:<Link2 size={17}/>}</span>
-        <span><strong>Link de divulgação</strong><small>{noLink?"Cadastre antes de aprovar":isMl?"Link informado pelo operador":"Link legado sem verificação"}</small></span></div>
+        <span><strong>Link de divulgação</strong><small>{noLink?"Aguardando link automático ou cadastro manual":isMl?"Link informado pelo operador":"Link legado sem verificação"}</small></span></div>
       <div className="review-step"><span className={"step-icon "+(!needsMedia?"done":"")}>{!needsMedia?<CheckCircle2 size={17}/>:<ImagePlus size={17}/>}</span>
         <span><strong>Imagem da promoção</strong><small>{!offer.image_url?"Sem imagem associada":needsMedia?"Precisa preparar imagem":"Imagem pronta para publicar"}</small></span>
         {offer.status==="DRAFT"&&needsMedia&&<button type="button" className="text-button" disabled={busy} onClick={prepareImage}>Preparar</button>}</div>

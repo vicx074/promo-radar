@@ -159,3 +159,9 @@ O backend agora suporta `DISCOVERY_PROVIDER=apify`, usando um Actor de scraping 
 ## Interface responsiva Tailwind CSS 4 (PR #10)
 
 O frontend permanece React + Vite, com **Tailwind CSS 4** para layout responsivo e Motion/Fancy Components para a microinteração do logo. Celular: quatro abas de navegação inferior, ações acessíveis por toque, busca e cards responsivos, seleção de produtos acima da barra inferior e revisão de oferta em coluna única; computador: sidebar e painel duplo. Veja [web/README.md](web/README.md) e [ADR 0013](docs/decisions/0013-tailwind-mobile-first.md). Testes E2E simulados em Chromium cobrem 320–1440px e não implicam integração real da conta Mercado Livre.
+
+## Geração de links com conector local (fila SQLite v7)
+
+Quando configurado `AFFILIATE_BRIDGE_TOKEN` (um segredo exclusivo **do Promo Radar**) e `AFFILIATE_AUTO_QUEUE=true`, selecionar produtos em Descobrir cria tarefas PENDING para cada DRAFT Mercado Livre. O computador do titular roda um **worker local Chrome/Playwright** com login pessoal na Central de Afiliados; o worker tenta usar endpoints **internos e não oficiais**, devolve `short_url` e `origin_url`, e o backend confere o vínculo antes de guardar. Acesse pelo celular ou computador, mas **o PC do titular deve estar ligado com o worker funcionando** para gerar links. Sem token/worker, cadastro manual continua disponível. Nenhum cookie/senha Mercado Livre sai do PC; geração nunca implica comissão confirmada, aprovação ou envio WhatsApp. Veja [guia passo a passo](docs/affiliate-local-bridge.md) e [ADR 0014](docs/decisions/0014-local-affiliate-bridge.md).
+
+Para comprovar a busca real Apify (não apenas mocks), execute conscientemente o probe que **pode gerar cobrança**: `docker compose exec -T bot python -m app.apify_probe "mouse gamer" --run-paid-probe`, com `APIFY_TOKEN` configurado no backend. A CI não realiza chamadas faturáveis.

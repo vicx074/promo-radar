@@ -54,7 +54,7 @@ jobs:
             sleep 2
           done
           curl -fsS http://127.0.0.1:5173/health \
-            | python -c 'import json,sys; assert json.load(sys.stdin)["schema_version"]==6'
+            | python -c 'import json,sys; assert json.load(sys.stdin)["schema_version"]==7'
 
           test "$(curl -s -o /dev/null -w '%{http_code}' \
             http://127.0.0.1:5173/api/v1/offers)" = 401

@@ -112,6 +112,6 @@ export function DiscoveryPage({onOpenOffer}: {
         <div className="selection-tray sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-40 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between md:bottom-5"><span><strong>{selected.size}</strong> produto(s) na seleção <small>Criação de rascunhos — sem envio</small></span><button type="button" className="button primary min-h-11 w-full sm:w-auto" onClick={()=>void saveSelection()} disabled={saving||selected.size===0}>{saving?"Salvando...":"Revisar selecionados"}<ArrowRight size={17}/></button></div>
       </>}
     </section>}
-    <div className="source-footnote flex flex-wrap items-start gap-2"><Sparkles size={15}/> A busca {result?.live ? <>consulta um <strong>scraper terceirizado (Apify)</strong></> : <>usa <strong>catálogo CSV local</strong></>}. Preços, estoque e descontos devem ser conferidos no anúncio antes de publicar.</div>
+    <div className="source-footnote flex flex-wrap items-start gap-2"><Sparkles size={15}/> A busca {result ? (result.live ? <>consulta um <strong>scraper terceirizado (Apify)</strong></> : <>usa <strong>catálogo CSV local</strong></>) : <>consulta a <strong>fonte configurada no servidor</strong></>}. Preços, estoque e descontos devem ser conferidos no anúncio antes de publicar.</div>
   </div>;
 }
