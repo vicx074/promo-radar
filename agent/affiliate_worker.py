@@ -67,7 +67,8 @@ def config() -> tuple[str, str]:
     if (
         not token or len(token) < 40
         or parsed.scheme not in ({"http", "https"} if local else {"https"})
-        or not parsed.hostname or parsed.username or parsed.password
+        or not parsed.hostname or (not local and not parsed.hostname.endswith(".ts.net"))
+        or parsed.username or parsed.password
         or parsed.query or parsed.fragment or parsed.path not in ("", "/")
     ):
         raise SystemExit(
