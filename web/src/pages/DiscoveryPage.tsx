@@ -18,8 +18,18 @@ function ProductCard({item, selected, onToggle}: {
     <div className="catalog-card-body min-w-0">
       <span className="catalog-tag">MERCADO LIVRE · PRODUTO</span>
       <strong title={item.title}>{item.title}</strong>
-      <span className="catalog-price text-base sm:text-xl">{formatBrl(item.price_cents)}</span>
-      <span className="catalog-meta">Preço do anúncio informado pelo provedor</span>
+      {item.reference_price_cents!==null && item.reference_price_cents!==undefined && item.reference_price_cents>item.price_cents
+        ? <div className="flex min-w-0 flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-xs text-slate-500">De: <s>{formatBrl(item.reference_price_cents)}</s></span>
+              {item.discount_percent!==null && item.discount_percent!==undefined && item.discount_percent>0 &&
+                <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[11px] font-extrabold text-emerald-800">{item.discount_percent}% OFF</span>}
+            </div>
+            <span className="text-xs font-semibold text-slate-500">Por:</span>
+            <span className="catalog-price text-xl font-extrabold text-emerald-700 sm:text-2xl">{formatBrl(item.price_cents)}</span>
+          </div>
+        : <span className="catalog-price text-base sm:text-xl">{formatBrl(item.price_cents)}</span>}
+      <span className="catalog-meta">Preços anunciados via provedor externo; confira antes de publicar</span>
       <span className="catalog-select">{selected?"Selecionado":"Selecionar produto"} <ArrowRight size={14}/></span>
     </div>
   </button>;
@@ -77,7 +87,7 @@ export function DiscoveryPage({onOpenOffer}: {
       <div className="hero-content min-w-0 px-4 py-6 sm:px-6 lg:px-10 lg:py-9">
         <div className="hero-badge"><Sparkles size={14}/> CURADORIA INTELIGENTE</div>
         <h2 className="text-[21px] sm:text-2xl">Encontre produtos.<br/><span>Escolha o que compartilhar.</span></h2>
-        <p>Busque anúncios reais por palavra-chave e selecione produtos para revisão.</p>
+        <p>Encontre anúncios com desconto informado e selecione as melhores ofertas para revisão.</p>
         <form onSubmit={handleSearch} className="hero-search flex w-full min-w-0 flex-wrap items-center gap-3 sm:flex-nowrap">
           <Search size={20} color="#5280ac" className="shrink-0"/>
           <input className="min-w-0 flex-[1_1_calc(100%-40px)] text-base sm:flex-1 sm:text-sm" aria-label="Buscar produtos" placeholder="Ex.: mouse gamer, notebook, fones..." value={query}
@@ -101,10 +111,10 @@ export function DiscoveryPage({onOpenOffer}: {
     {searching&&<div className="loading-card"><div className="spinner"/><p>Buscando anúncios no Mercado Livre...</p></div>}
     {result&&<section className="results">
       <div className="results-header flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div><div className="eyebrow">RESULTADO DA BUSCA</div><h2>{result.items.length} produto{result.items.length===1?"":"s"} encontrado{result.items.length===1?"":"s"}</h2><p>Para “{result.query}” · {result.live ? 'coleta terceirizada (Apify)' : 'catálogo CSV local'}</p></div>
+        <div><div className="eyebrow">RESULTADO DA BUSCA</div><h2>{result.items.length} {result.live?"promoção":"produto"}{result.items.length===1?"":"s"} encontrada{result.items.length===1?"":"s"}</h2><p>Para “{result.query}” · {result.live ? 'coleta terceirizada (Apify)' : 'catálogo CSV local'}</p></div>
         <div className="results-info"><Clock3 size={15}/> Seleção válida por 45 min</div>
       </div>
-      {result.items.length===0?<div className="empty-panel"><PackageSearch size={30}/><h3>Nenhum produto encontrado</h3><p>Tente outro termo ou atualize o catálogo autorizado.</p></div>:
+      {result.items.length===0?<div className="empty-panel"><PackageSearch size={30}/><h3>Nenhuma promoção identificada</h3><p>{result.live?"Não encontramos anúncios com preço original maior que o preço atual nesta consulta. Tente outra palavra-chave.":"Tente outro termo ou atualize o catálogo autorizado."}</p></div>:
       <>
         <div className="results-controls flex flex-wrap items-center justify-between gap-2"><span>{selected.size} de {result.items.length} selecionado(s)</span>
           <button type="button" className="text-button" onClick={()=>setSelected(selected.size===result.items.length?new Set():new Set(result.items.map(item=>item.source_item_id)))}><CheckCheck size={15}/>{selected.size===result.items.length?"Desmarcar todos":"Selecionar todos"}</button></div>
@@ -112,6 +122,6 @@ export function DiscoveryPage({onOpenOffer}: {
         <div className="selection-tray sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-40 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between md:bottom-5"><span><strong>{selected.size}</strong> produto(s) na seleção <small>Criação de rascunhos — sem envio</small></span><button type="button" className="button primary min-h-11 w-full sm:w-auto" onClick={()=>void saveSelection()} disabled={saving||selected.size===0}>{saving?"Salvando...":"Revisar selecionados"}<ArrowRight size={17}/></button></div>
       </>}
     </section>}
-    <div className="source-footnote flex flex-wrap items-start gap-2"><Sparkles size={15}/> A busca {result ? (result.live ? <>consulta um <strong>scraper terceirizado (Apify)</strong></> : <>usa <strong>catálogo CSV local</strong></>) : <>consulta a <strong>fonte configurada no servidor</strong></>}. Preços, estoque e descontos devem ser conferidos no anúncio antes de publicar.</div>
+    <div className="source-footnote flex flex-wrap items-start gap-2"><Sparkles size={15}/> A busca {result ? (result.live ? <>consulta um <strong>scraper terceirizado (Apify)</strong></> : <>usa <strong>catálogo CSV local</strong></>) : <>consulta a <strong>fonte configurada no servidor</strong></>}. O preço original é o valor riscado informado pelo anúncio, não um histórico verificado. Confira preço, estoque e desconto antes de publicar.</div>
   </div>;
 }
