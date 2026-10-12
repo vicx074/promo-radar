@@ -21,7 +21,7 @@ def format_brl(cents: int) -> str:
 def discount_percent(price_cents: int, reference_price_cents: int | None) -> int | None:
     if reference_price_cents is None or reference_price_cents <= price_cents:
         return None
-    return round((reference_price_cents - price_cents) * 100 / reference_price_cents)
+    return (reference_price_cents - price_cents) * 100 // reference_price_cents
 
 
 def format_offer(offer: dict) -> str:
