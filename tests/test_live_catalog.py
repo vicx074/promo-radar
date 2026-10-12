@@ -217,4 +217,6 @@ def test_discounted_price_preserved_after_search_snapshot(tmp_path):
         offer = client.get("/api/v1/offers/" + oid, headers=ADMIN).json()
         assert offer["reference_price_cents"] == 399999
         preview = client.get("/api/v1/offers/" + oid + "/preview", headers=ADMIN).json()
-        assert "35% abaixo" in preview["message"]
+        assert "35% OFF" in preview["message"]
+        assert "De: R$ 3.999,99" in preview["message"]
+        assert "Por: *R$ 2.599,90*" in preview["message"]
