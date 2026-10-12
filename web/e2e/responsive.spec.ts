@@ -32,6 +32,8 @@ async function mockPrivateApi(page: Page) {
           source_item_id: "MLB_NOTEBOOK_" + i,
           title: "Notebook Lenovo configuração " + i + " memória e SSD",
           price_cents: 259990 + i * 1000,
+          reference_price_cents: 359990 + i * 1000,
+          discount_percent: 27,
           product_url: product.product_url,
           image_url: null,
           promotion_verified: false,
@@ -87,6 +89,9 @@ for (const width of [320, 375, 390, 768, 1024, 1440]) {
     await page.getByRole("textbox", {name: "Buscar produtos"}).fill("notebook");
     await page.getByRole("button", {name: "Buscar ofertas"}).click();
     await expect(page.locator(".catalog-card")).toHaveCount(6);
+    await expect(page.locator(".catalog-card").first()).toContainText("De:");
+    await expect(page.locator(".catalog-card").first()).toContainText("Por:");
+    await expect(page.locator(".catalog-card").first()).toContainText("27% OFF");
     await expectNoHorizontalOverflow(page);
 
     await page.getByRole("button", {name: "Ofertas", exact: true}).click();

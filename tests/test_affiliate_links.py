@@ -203,7 +203,7 @@ def test_migrates_approved_ml_with_publication_without_claiming_commission(tmp_p
                           headers=ADMIN).json()["status"] == "SENT"
         assert fake.calls == []
     with sqlite3.connect(db) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 7
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 8
         assert conn.execute("SELECT COUNT(*) FROM publications").fetchone()[0] == 1
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
         assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"

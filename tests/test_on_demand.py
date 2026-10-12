@@ -75,7 +75,7 @@ def test_search_on_demand_and_select_without_whatsapp(tmp_path):
         assert item["image_url"] == "https://http2.mlstatic.com/test.jpg"
         assert item["promotion_verified"] is False
         assert item["price_history_available"] is False
-        assert client.get("/health").json()["schema_version"] == 7
+        assert client.get("/health").json()["schema_version"] == 8
         assert client.get("/api/v1/offers", headers={"x-admin-key": "test-admin-key"}
                           ).json() == []
         created = select(client, result["search_id"], ["MLBmouse"])
@@ -213,7 +213,7 @@ def test_preserves_existing_v3_data_after_upgrade(tmp_path):
                    'https://example.org/old', 'APPROVED', '2026-10-10T00:00:00+00:00')"""
         )
     with TestClient(create_app(config, publisher=NeverSend())) as client:
-        assert client.get("/health").json()["schema_version"] == 7
+        assert client.get("/health").json()["schema_version"] == 8
         assert client.get("/api/v1/offers/old",
                           headers={"x-admin-key": "test-admin-key"}
                           ).json()["status"] == "APPROVED"

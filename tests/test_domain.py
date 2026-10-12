@@ -20,4 +20,6 @@ def test_message_identifies_advertising():
     })
     assert "*Publicidade:*" in message
     assert "R$ 150,00" in message
-    assert "25%" in message
+    assert "25% OFF" in message
+    assert "De: R$ 200,00" in message
+    assert "Por: *R$ 150,00*" in message

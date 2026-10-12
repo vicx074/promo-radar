@@ -88,6 +88,7 @@ def parse_apify_items(data: object, *, limit: int) -> list[CatalogItem]:
         raise InvalidCatalog("Provedor retornou produtos acima do limite de segurança")
     results: list[CatalogItem] = []
     seen: set[str] = set()
+    valid_listings = 0
     for row in data:
         if not isinstance(row, dict):
             continue
@@ -107,6 +108,14 @@ def parse_apify_items(data: object, *, limit: int) -> list[CatalogItem]:
         url = _product_link(row.get("url") or row.get("product_url"))
         if price is None or url is None:
             continue
+        valid_listings += 1
+        # Apenas promoções com preço original informado e maior que o atual.
+        original = _price_in_cents(row.get("originalPrice"))
+        if original is None or original <= price:
+            continue
+        # Diferenças inferiores a 1% não são rotuladas como promoção.
+        if (original - price) * 100 < original:
+            continue
         item_id = row.get("productId") or row.get("item_id")
         if not isinstance(item_id, str) or not _ID.fullmatch(item_id):
             item_id = "WEB" + hashlib.sha256(url.encode("utf-8")).hexdigest()[:24]
@@ -114,10 +123,10 @@ def parse_apify_items(data: object, *, limit: int) -> list[CatalogItem]:
             continue
         seen.add(item_id)
         image = _image(row.get("image") or row.get("image_url"))
-        results.append(CatalogItem(item_id, title, price, url, image))
+        results.append(CatalogItem(item_id, title, price, url, image, original))
         if len(results) >= limit:
             break
-    if data and not results:
+    if data and not results and not valid_listings:
         raise InvalidCatalog(
             "O provedor não retornou anúncios válidos: confira URLs, preços e formato"
         )
@@ -147,9 +156,11 @@ class ApifyCatalogProvider:
             raise InvalidCatalog("Nicho ou limite de resultados inválido")
         # Um Actor específico e auditável; não é URL recebida do usuário (sem SSRF).
         # A configuração reduz a carga e limita o custo máximo por execução.
+        # Uma só consulta mais ampla, pois muitos anúncios não possuem promoção.
+        fetched_items = min(50, max(10, limit * 3))
         payload = {
             "keyword": query.strip(),
-            "maxItems": max(10, limit),
+            "maxItems": fetched_items,
             "maxPages": 1,
             "sort": "relevance",
         }
@@ -163,7 +174,7 @@ class ApifyCatalogProvider:
                     "Accept": "application/json",
                     "Content-Type": "application/json",
                 },
-                params={"maxItems": str(max(10, limit)), "maxTotalChargeUsd": "0.20"},
+                params={"maxItems": str(fetched_items), "maxTotalChargeUsd": "0.20"},
                 json=payload,
             )
             if response.status_code in (401, 403):

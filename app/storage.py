@@ -110,7 +110,14 @@ class SQLiteStore:
                 conn.executescript(migration)
                 conn.execute("PRAGMA user_version = 7")
                 version = 7
-            if version != 7:
+            if version == 7:
+                migration = Path(__file__).parent.joinpath(
+                    "migrations/008_search_original_prices.sql"
+                ).read_text()
+                conn.executescript(migration)
+                conn.execute("PRAGMA user_version = 8")
+                version = 8
+            if version != 8:
                 raise RuntimeError(f"Versão do SQLite incompatível: {version}")
 
     def health(self) -> bool:
@@ -313,10 +320,11 @@ class SQLiteStore:
             for item in items:
                 conn.execute(
                     """INSERT INTO discovery_search_items
-                    (search_id, source_item_id, title, price_cents, product_url, image_url)
-                    VALUES (?, ?, ?, ?, ?, ?)""",
+                    (search_id, source_item_id, title, price_cents, product_url,
+                     image_url, reference_price_cents)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
                     (search_id, item.item_id, item.title, item.price_cents,
-                     item.product_url, item.image_url),
+                     item.product_url, item.image_url, item.reference_price_cents),
                 )
         return {
             "search_id": search_id,
@@ -328,6 +336,12 @@ class SQLiteStore:
                     "source_item_id": item.item_id,
                     "title": item.title,
                     "price_cents": item.price_cents,
+                    "reference_price_cents": item.reference_price_cents,
+                    "discount_percent": (
+                        (item.reference_price_cents - item.price_cents) * 100
+                        // item.reference_price_cents
+                        if item.reference_price_cents else None
+                    ),
                     "product_url": item.product_url,
                     "image_url": item.image_url,
                     "price_history_available": False,
@@ -370,10 +384,11 @@ class SQLiteStore:
                     (id, source, source_item_id, title, price_cents,
                      reference_price_cents, affiliate_url, product_url,
                      image_url, status, created_at)
-                    VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)""",
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (offer_id, search["source"], offer_source_id, row["title"],
-                     row["price_cents"], row["product_url"],
-                     row["product_url"], row["image_url"], OfferStatus.DRAFT, utc_now()),
+                     row["price_cents"], row["reference_price_cents"],
+                     row["product_url"], row["product_url"], row["image_url"],
+                     OfferStatus.DRAFT, utc_now()),
                 ).rowcount == 1
                 offer = conn.execute(
                     """SELECT id, status, affiliate_link_url FROM offers

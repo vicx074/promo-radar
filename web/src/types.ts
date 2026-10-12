@@ -20,6 +20,8 @@ export interface SearchItem {
   source_item_id: string;
   title: string;
   price_cents: number;
+  reference_price_cents: number | null;
+  discount_percent: number | null;
   product_url: string;
   image_url: string | null;
   promotion_verified: boolean;
