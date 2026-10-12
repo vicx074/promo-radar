@@ -125,7 +125,9 @@ export function OfferDetails({offerId,onUpdated}:{
     <div className="detail-head"><div><div className="eyebrow">DETALHES DA OFERTA</div><h2>Revisão & publicação</h2></div><ClipboardList size={20}/></div>
     {error&&<Feedback tone="error" onClose={()=>setError("")}>{error}</Feedback>}
     {success&&<Feedback tone="success" onClose={()=>setSuccess("")}>{success}</Feedback>}
-    <div className="detail-product flex min-w-0 flex-wrap items-center gap-3 sm:flex-nowrap"><ProductPhoto url={offer.image_url} title={offer.title}/><span><strong>{offer.title}</strong><span>{formatBrl(offer.price_cents)}</span></span></div>
+    <div className="detail-product flex min-w-0 flex-wrap items-center gap-3 sm:flex-nowrap"><ProductPhoto url={offer.image_url} title={offer.title}/><span className="min-w-0"><strong>{offer.title}</strong>{offer.reference_price_cents!==null && offer.reference_price_cents>offer.price_cents
+      ? <span className="flex flex-wrap items-center gap-2"><s className="text-xs text-slate-500">{formatBrl(offer.reference_price_cents)}</s><span className="font-extrabold text-emerald-700">{formatBrl(offer.price_cents)}</span></span>
+      : <span>{formatBrl(offer.price_cents)}</span>}</span></div>
     <div className="detail-links min-w-0"><div className="flex flex-wrap items-center gap-2"><span>Endereço do produto</span>{offer.product_url?
       <a href={offer.product_url} target="_blank" rel="noreferrer noopener">Abrir produto <ExternalLink size={13}/></a>:<small>Não informado</small>}</div>
       <div className="flex flex-wrap items-center gap-2"><span>Link de afiliado</span>{offer.affiliate_url?
